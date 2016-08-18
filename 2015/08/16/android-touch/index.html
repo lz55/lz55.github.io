@@ -1,0 +1,400 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> Android touch事件处理流程 · Hexo</title><meta name="description" content="Android touch事件处理流程 - lz55"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/apollo.css"><link rel="search" type="application/opensearchdescription+xml" href="http://lz55.github.io/atom.xml" title="Hexo"></head><body><div class="wrap"><header><a href="/" class="logo-link"><img src="/favicon.png"></a><ul class="nav nav-list"><li class="nav-list-item"><a href="/" target="_self" class="nav-list-link">BLOG</a></li><li class="nav-list-item"><a href="/archives/" target="_self" class="nav-list-link">ARCHIVE</a></li><li class="nav-list-item"><a href="http://weibo.com/2322512651/profile?topnav=1&amp;wvr=6&amp;is_all=1" target="_blank" class="nav-list-link">WEIBO</a></li><li class="nav-list-item"><a href="https://github.com/helloyingying" target="_blank" class="nav-list-link">GITHUB</a></li><li class="nav-list-item"><a href="/atom.xml" target="_self" class="nav-list-link">RSS</a></li></ul></header><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">Android touch事件处理流程</h1><div class="post-info">Aug 16, 2015</div><div class="post-content"><h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>工作中遇到一个业务场景：对WebView做一个封装，能根据webview某个点的透明度决定事件是被消费掉还是透传下去。有两个思路，一个是继承，一个是引用，能继承当然是最好的，但是有的时候也许根本没办法继承webview，比如为了资源回收等问题系统使用同一个webview组件，但不巧的是，为了模块解耦，在别的模块根本拿不到webview的类，只能通过bridge拿到一个引用，这个就必须通过引用来实现了。无论哪种方法都涉及到了touch事件的处理流程，简单梳理下。</p>
+<h1 id="View对touch事件的处理流程"><a href="#View对touch事件的处理流程" class="headerlink" title="View对touch事件的处理流程"></a>View对touch事件的处理流程</h1><p>对Touch事件的处理涉及四个重要的方法：</p>
+<p>dispatchTouchEvent(MotionEvent event)<br>setOnTouchListener(OnTouchListener l)<br>onTouchEvent(MotionEvent event)</p>
+<p>先了解一下<code>dispatchTouchEvent(MotionEvent event)</code>:</p>
+<pre><code>/**
+ * Pass the touch screen motion event down to the target view, or this
+ * view if it is the target.
+ *
+ * @param event The motion event to be dispatched.
+ * @return True if the event was handled by the view, false otherwise.
+ */
+public boolean dispatchTouchEvent(MotionEvent event) {
+    // If the event should be handled by accessibility focus first.
+    if (event.isTargetAccessibilityFocus()) {
+        // We don&apos;t have focus or no virtual descendant has it, do not handle the event.
+        if (!isAccessibilityFocusedViewOrHost()) {
+            return false;
+        }
+        // We have focus and got the event, then use normal event dispatch.
+        event.setTargetAccessibilityFocus(false);
+    }
+
+    boolean result = false;
+
+    if (mInputEventConsistencyVerifier != null) {
+        mInputEventConsistencyVerifier.onTouchEvent(event, 0);
+    }
+
+    final int actionMasked = event.getActionMasked();
+    if (actionMasked == MotionEvent.ACTION_DOWN) {
+        // Defensive cleanup for new gesture
+        stopNestedScroll();
+    }
+
+    if (onFilterTouchEventForSecurity(event)) {
+        //noinspection SimplifiableIfStatement
+        ListenerInfo li = mListenerInfo;
+        if (li != null &amp;&amp; li.mOnTouchListener != null
+                &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED
+                &amp;&amp; li.mOnTouchListener.onTouch(this, event)) {
+            result = true;
+        }
+        if (!result &amp;&amp; onTouchEvent(event)) {
+            result = true;
+        }
+    }
+
+    if (!result &amp;&amp; mInputEventConsistencyVerifier != null) {
+        mInputEventConsistencyVerifier.onUnhandledEvent(event, 0);
+    }
+
+    // Clean up after nested scrolls if this is the end of a gesture;
+    // also cancel it if we tried an ACTION_DOWN but we didn&apos;t want the rest
+    // of the gesture.
+    if (actionMasked == MotionEvent.ACTION_UP ||
+            actionMasked == MotionEvent.ACTION_CANCEL ||
+            (actionMasked == MotionEvent.ACTION_DOWN &amp;&amp; !result)) {
+        stopNestedScroll();
+    }
+
+    return result;
+}
+</code></pre><p>   代码略长，但是和重点部分是下面的这几句：</p>
+<pre><code>if (onFilterTouchEventForSecurity(event)) {
+       //noinspection SimplifiableIfStatement
+       ListenerInfo li = mListenerInfo;
+       if (li != null &amp;&amp; li.mOnTouchListener != null
+               &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED
+               &amp;&amp; li.mOnTouchListener.onTouch(this, event)) {
+           result = true;
+       }
+       if (!result &amp;&amp; onTouchEvent(event)) {
+           result = true;
+       }
+ }
+</code></pre><p>这段代码先判断了通过<code>setOnTouchEvent(OnTouchListener l)</code> 设置的<code>onTouchListener</code>, 如果listener不为空，View 的点击状态是ENABLE，并且<code>onTouchListener.onTouch</code> 返回true，那么给Result置为true。代码接着判断Result为false，才会执行View 自身的<code>onTouchEvent</code> 方法，如果<code>onTouchEvent</code> 返回true则将Result置为true。如果经过这两步Result为true，代表当前事件已经被消费掉了，触发下一次事件。否则是不会触发下一次事件的，典型的表现就是action_down被触发而action_move, action_up不会得到响应。</p>
+<p>也就是说：touch事件会首先触发dispatchTouchEvent方法，并且如果外围设置了onTouchListener会先执行onTouchListener的onTouch方法，只有当onTouch返回false才会执行自身的onTouchEvent方法。</p>
+<p>看一下 <code>onTouchEvent(MotionEvent event)</code>:</p>
+<pre><code>/**
+ * Implement this method to handle touch screen motion events.
+ * &lt;p&gt;
+ * If this method is used to detect click actions, it is recommended that
+ * the actions be performed by implementing and calling
+ * {@link #performClick()}. This will ensure consistent system behavior,
+ * including:
+ * &lt;ul&gt;
+ * &lt;li&gt;obeying click sound preferences
+ * &lt;li&gt;dispatching OnClickListener calls
+ * &lt;li&gt;handling {@link AccessibilityNodeInfo#ACTION_CLICK ACTION_CLICK} when
+ * accessibility features are enabled
+ * &lt;/ul&gt;
+ *
+ * @param event The motion event.
+ * @return True if the event was handled, false otherwise.
+ */
+public boolean onTouchEvent(MotionEvent event) {
+    final float x = event.getX();
+    final float y = event.getY();
+    final int viewFlags = mViewFlags;
+
+    if ((viewFlags &amp; ENABLED_MASK) == DISABLED) {
+        if (event.getAction() == MotionEvent.ACTION_UP &amp;&amp; (mPrivateFlags &amp; PFLAG_PRESSED) != 0) {
+            setPressed(false);
+        }
+        // A disabled view that is clickable still consumes the touch
+        // events, it just doesn&apos;t respond to them.
+        return (((viewFlags &amp; CLICKABLE) == CLICKABLE ||
+                (viewFlags &amp; LONG_CLICKABLE) == LONG_CLICKABLE));
+    }
+
+    if (mTouchDelegate != null) {
+        if (mTouchDelegate.onTouchEvent(event)) {
+            return true;
+        }
+    }
+
+    if (((viewFlags &amp; CLICKABLE) == CLICKABLE ||
+            (viewFlags &amp; LONG_CLICKABLE) == LONG_CLICKABLE)) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_UP:
+                boolean prepressed = (mPrivateFlags &amp; PFLAG_PREPRESSED) != 0;
+                if ((mPrivateFlags &amp; PFLAG_PRESSED) != 0 || prepressed) {
+                    // take focus if we don&apos;t have it already and we should in
+                    // touch mode.
+                    boolean focusTaken = false;
+                    if (isFocusable() &amp;&amp; isFocusableInTouchMode() &amp;&amp; !isFocused()) {
+                        focusTaken = requestFocus();
+                    }
+
+                    if (prepressed) {
+                        // The button is being released before we actually
+                        // showed it as pressed.  Make it show the pressed
+                        // state now (before scheduling the click) to ensure
+                        // the user sees it.
+                        setPressed(true, x, y);
+                   }
+
+                    if (!mHasPerformedLongPress) {
+                        // This is a tap, so remove the longpress check
+                        removeLongPressCallback();
+
+                        // Only perform take click actions if we were in the pressed state
+                        if (!focusTaken) {
+                            // Use a Runnable and post this rather than calling
+                            // performClick directly. This lets other visual state
+                            // of the view update before click actions start.
+                            if (mPerformClick == null) {
+                                mPerformClick = new PerformClick();
+                            }
+                            if (!post(mPerformClick)) {
+                                performClick();
+                            }
+                        }
+                    }
+
+                    if (mUnsetPressedState == null) {
+                        mUnsetPressedState = new UnsetPressedState();
+                    }
+
+                    if (prepressed) {
+                        postDelayed(mUnsetPressedState,
+                                ViewConfiguration.getPressedStateDuration());
+                    } else if (!post(mUnsetPressedState)) {
+                        // If the post failed, unpress right now
+                        mUnsetPressedState.run();
+                    }
+
+                    removeTapCallback();
+                }
+                break;
+
+            case MotionEvent.ACTION_DOWN:
+                mHasPerformedLongPress = false;
+
+                if (performButtonActionOnTouchDown(event)) {
+                    break;
+                }
+
+                // Walk up the hierarchy to determine if we&apos;re inside a scrolling container.
+                boolean isInScrollingContainer = isInScrollingContainer();
+
+                // For views inside a scrolling container, delay the pressed feedback for
+                // a short period in case this is a scroll.
+                if (isInScrollingContainer) {
+                    mPrivateFlags |= PFLAG_PREPRESSED;
+                    if (mPendingCheckForTap == null) {
+                        mPendingCheckForTap = new CheckForTap();
+                    }
+                    mPendingCheckForTap.x = event.getX();
+                    mPendingCheckForTap.y = event.getY();
+                    postDelayed(mPendingCheckForTap, ViewConfiguration.getTapTimeout());
+                } else {
+                    // Not inside a scrolling container, so show the feedback right away
+                    setPressed(true, x, y);
+                    checkForLongClick(0);
+                }
+                break;
+
+            case MotionEvent.ACTION_CANCEL:
+                setPressed(false);
+                removeTapCallback();
+                removeLongPressCallback();
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                drawableHotspotChanged(x, y);
+
+                // Be lenient about moving outside of buttons
+                if (!pointInView(x, y, mTouchSlop)) {
+                    // Outside button
+                    removeTapCallback();
+                    if ((mPrivateFlags &amp; PFLAG_PRESSED) != 0) {
+                        // Remove any future long press/tap checks
+                        removeLongPressCallback();
+
+                        setPressed(false);
+                    }
+                }
+                break;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+</code></pre><p>代码的逻辑还是非常清晰的，在该方法中主要是做了Event的action产生click，longPress等事件。</p>
+<h1 id="ViewGroup对touch事件的处理"><a href="#ViewGroup对touch事件的处理" class="headerlink" title="ViewGroup对touch事件的处理"></a>ViewGroup对touch事件的处理</h1><p>ViewGroup和Touch事件相关的方法比起View多了一个onInterceptTouchEvent(MotionEvent ev)，而这个方法代码非常简单：</p>
+<pre><code>public boolean onInterceptTouchEvent(MotionEvent ev) {
+    return false;
+}
+</code></pre><p>但是它的注释却长的吓人：</p>
+<p><img src="!--￼0--&gt;/assets/image/onInterceptTouchEvent.png" alt=""></p>
+<p>用一段测试程序来说明这些流程，假设有一个ViewGroup比如FrameLayout，里面包含了一个Button。</p>
+<p>Activity的代码：</p>
+<pre><code>findViewById(R.id.touch_btn).setOnTouchListener(new       View.OnTouchListener() {
+        @Override
+        public boolean onTouch(View v, MotionEvent event) {
+            Log.d(&quot;MyButton&quot;, &quot;OnTouchListener&quot;);
+            return false;
+        }
+    });
+
+    findViewById(R.id.touch_frame_layout).setOnTouchListener(new View.OnTouchListener() {
+        @Override
+        public boolean onTouch(View v, MotionEvent event) {
+            Log.d(&quot;MyFrameLayout&quot;, &quot;OnTouchListener&quot;);
+            return false;
+        }
+    });
+</code></pre><p>MyButton的代码：</p>
+<pre><code>public class MyButton extends Button {
+    public MyButton(Context context) {
+        super(context);
+    }
+
+    public MyButton(Context context, AttributeSet attrs) {
+        super(context, attrs);
+    }
+
+    public MyButton(Context context, AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        Log.d(&quot;MyButton&quot;, &quot;onTouchEvent&quot;);
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        Log.d(&quot;MyButton&quot;, &quot;dispatchTouchEvent&quot;);
+        return super.dispatchTouchEvent(event);
+    }
+}
+</code></pre><p>MyFrameLayout的代码如下:</p>
+<pre><code>public class MyTouchFrameLayout extends FrameLayout {
+    public MyTouchFrameLayout(Context context) {
+        super(context);
+    }
+
+    public MyTouchFrameLayout(Context context, AttributeSet attrs) {
+        super(context, attrs);
+    }
+
+    public MyTouchFrameLayout(Context context, AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        Log.d(&quot;MyFrameLayout&quot;, &quot;onInterceptTouchEvent&quot;);
+        return super.onInterceptTouchEvent(ev);
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        Log.d(&quot;MyFrameLayout&quot;, &quot;dispatchTouchEvent&quot;);
+        return super.dispatchTouchEvent(ev);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        Log.d(&quot;MyFrameLayout&quot;, &quot;onTouchEvent&quot;);
+        return super.onTouchEvent(event);
+    }
+}
+</code></pre><p>点击button时事件的传递流程如下：</p>
+<p><strong>action_down</strong></p>
+<ol>
+<li><code>MyFrameLayout﹕ dispatchTouchEvent</code></li>
+<li><code>MyFrameLayout﹕ onInterceptTouchEvent</code></li>
+<li><code>MyButton﹕ dispatchTouchEvent</code></li>
+<li><code>MyButton﹕ OnTouchListener</code></li>
+<li><code>MyButton﹕ onTouchEvent</code><br><strong>action_up</strong><br><code>MyFrameLayout﹕ dispatchTouchEvent</code><br><code>MyFrameLayout﹕ onInterceptTouchEvent</code><br><code>MyButton﹕ dispatchTouchEvent</code><br><code>MyButton﹕ OnTouchListener</code><br><code>MyButton﹕ onTouchEvent</code></li>
+</ol>
+<p>也就是说任何一个action都会先触发父类布局的dispatchTouchEvent -&gt; onInterceptTouchEvent, 但是FrameLayout的onTouchEvent方法并没有被调用。</p>
+<p>如果将onInterceptTouchEvent的返回值改为true，测试结果如下所示：</p>
+<ol>
+<li><code>MyFrameLayout﹕ dispatchTouchEvent</code></li>
+<li><code>MyFrameLayout﹕ onInterceptTouchEvent</code></li>
+<li><code>MyFrameLayout﹕ OnTouchListener</code></li>
+<li><code>MyFrameLayout﹕ onTouchEvent</code></li>
+</ol>
+<p>可以发现执行到了FrameLayout的onTouchEvent方法，但是MyButton的所有方法都没有被执行到。</p>
+<p>去ViewGroup的dispatchTouchEvent方法一探究竟（代码过长只说部分代码和结论，有兴趣直接看源码）：</p>
+<p><img src="!--￼1--&gt;/assets/image/dispatch_intercept.png" alt=""></p>
+<p>结论：</p>
+<ul>
+<li><p>在<code>dispatchTouchEvent</code>方法中会首先执行<code>onInterceptTouchEvent</code>判断是否拦截事件，如果<code>onInterceptTouchEvent</code>返回false表示不拦截则将<strong>倒序</strong>遍历子View（布局中后添加的View会先做出响应），并调用<code>dispatchTransformedTouchEvent</code>方法递归调用子View的<code>dispatchTouchEvent</code>方法，如果子View为Viewgroup并且没有被拦截那么递归调用<code>dispatchTouchEvent</code>，如果子View为View调用<code>onTouchEvent</code>方法。</p>
+</li>
+<li><p>如果<code>onInterceptTouchEvent</code>返回true，表示将事件拦截下来不往子View传递，调用自身的<code>onTouchEvent</code>事件。</p>
+</li>
+</ul>
+<h1 id="基于继承关系的PenetrateWebView（可穿透WebView）"><a href="#基于继承关系的PenetrateWebView（可穿透WebView）" class="headerlink" title="基于继承关系的PenetrateWebView（可穿透WebView）"></a>基于继承关系的PenetrateWebView（可穿透WebView）</h1><p>明白了touch事件在View中的传递流程，使用继承来实现PenetrateWebView也就非常简单了。</p>
+<p>首先有一个工具方法来获取某一点的alpha值：</p>
+<pre><code>private static int getAlphaOfViewPoint(View view, int x, int y) {
+    view.setDrawingCacheEnabled(true);
+    Bitmap bmp = view.getDrawingCache(true);
+    int pixel = bmp.getPixel(x, y);
+    int alpha = Color.alpha(pixel);
+    TMDebugLog.logv(&quot;pop_layer.point_alpha &quot;, alpha+&quot;&quot;);
+    view.destroyDrawingCache();
+    return alpha;
+}
+</code></pre><p>然后再自定义WebView中重写onTouchEvent方法：</p>
+<pre><code> public boolean onTouchEvent(MotionEvent event) {
+    try {
+        if (event.getY() &lt; 0 || event.getX() &lt; 0)
+            return super.onTouchEvent(event);
+
+        //如果某点的alpha值小于等于阈值，将事件透传下去
+        //反之将事件消费掉
+        if (getAlphaOfViewPoint(this, (int) event.getX(), (int) event.getY()) &lt;= mPenetrateAlpha) {
+            return false;
+        }
+        return super.onTouchEvent(event);
+    } catch (Throwable e) {
+        e.printStackTrace();
+        return super.onTouchEvent(event);
+    }
+}
+</code></pre><p>基于继承关系的PenetrateWebView实现起来还是非常容易的，下面讨论一下基于引用关系的PenetrateWebView。</p>
+<h1 id="基于引用关系的PenetrateWebView"><a href="#基于引用关系的PenetrateWebView" class="headerlink" title="基于引用关系的PenetrateWebView"></a>基于引用关系的PenetrateWebView</h1><p>当没有办法继承的时候我首先想到的是设置OnTouchListener，但是onTouch返回true虽然将事件消费掉了，但是就不会执行onTouchEvent方法，也就无法产生click事件，整个WebView失去了交互的能力。返回false更加没有任何意义了，还是没办法控制onTouchEvent。<br>于是想到了在WebView的外部嵌套一层布局实现事件的拦截，一开始没搞清楚ViewGroup中事件的传递流程，在dispatchTouchEvent和onTouchEvent中写逻辑，发现还是没办法实现很好的控制，在阅读了touch相关的代码后，使用下面的方式实现了PenetrateWebView。</p>
+<pre><code>@Override
+public boolean onInterceptTouchEvent(MotionEvent event) {
+    try {
+        if (event.getY() &lt; 0 || event.getX() &lt; 0)
+            return super.onTouchEvent(event);
+        // 如果该点的alpha小于等于阈值，在该布局中拦截下事件，交给上层布局处理，onTouchEvent事件会被执行，onTouchEvent始终返回false，将事件透传下去
+        // 如果该点的alpha大于阈值，将事件交给子View处理，onTouchEvent事件并不会被执行，将事件拦截下来
+        return getAlphaOfViewPoint(this, (int) event.getX(), (int) event.getY()) &lt;= mPenetrateAlpha;
+    } catch (Throwable e) {
+        e.printStackTrace();
+        return false;
+    }
+}
+
+@Override
+public boolean onTouchEvent(MotionEvent event) {
+    return false;//当该方法被执行的时候，将事件交给父类布局去处理
+}
+</code></pre><h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ol>
+<li>View设置OnTouchListener之后，如果onTouch返回true那么onTouchEvent方法不会被执行。</li>
+<li>click事件是在onTouchEvent方法中产生的。</li>
+<li>ViewGroup中Touch事件传递是从外到内的，子View倒序遍历。</li>
+<li>ViewGroup中onInterceptTouchEvent方法返回false的时候不会执行该ViewGroup的onTouchEvent方法，返回true则会执行。</li>
+</ol>
+</div></article></div></section><footer><div class="paginator"><a href="/2015/10/11/java-weak-references/" class="prev">PREV</a><a href="/2015/07/16/displaying-bitmaps-efficiently/" class="next">NEXT</a></div><div data-thread-key="2015/08/16/android-touch/" data-title="Android touch事件处理流程" data-url="http://lz55.github.io/2015/08/16/android-touch/" data-author-key="1" class="ds-thread"></div><script>var duoshuoQuery = {short_name:"lz55"};
+(function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+     || document.getElementsByTagName('body')[0]).appendChild(ds);
+})();
+
+</script><div class="copyright"><p>© 2015 - 2016 <a href="http://lz55.github.io">lz55</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and <a href="https://github.com/pinggod/hexo-theme-apollo" target="_blank">hexo-theme-apollo</a>.</p></div></footer></div><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-65933410-1",'auto');ga('send','pageview');</script></body></html>

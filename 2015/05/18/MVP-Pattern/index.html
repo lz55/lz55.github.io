@@ -1,0 +1,107 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> Android开发中的MVVM模式实践 · Hexo</title><meta name="description" content="Android开发中的MVVM模式实践 - lz55"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/apollo.css"><link rel="search" type="application/opensearchdescription+xml" href="http://lz55.github.io/atom.xml" title="Hexo"></head><body><div class="wrap"><header><a href="/" class="logo-link"><img src="/favicon.png"></a><ul class="nav nav-list"><li class="nav-list-item"><a href="/" target="_self" class="nav-list-link">BLOG</a></li><li class="nav-list-item"><a href="/archives/" target="_self" class="nav-list-link">ARCHIVE</a></li><li class="nav-list-item"><a href="http://weibo.com/2322512651/profile?topnav=1&amp;wvr=6&amp;is_all=1" target="_blank" class="nav-list-link">WEIBO</a></li><li class="nav-list-item"><a href="https://github.com/helloyingying" target="_blank" class="nav-list-link">GITHUB</a></li><li class="nav-list-item"><a href="/atom.xml" target="_self" class="nav-list-link">RSS</a></li></ul></header><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">Android开发中的MVVM模式实践</h1><div class="post-info">May 18, 2015</div><div class="post-content"><h1 id="MVC-MVP-and-MVM"><a href="#MVC-MVP-and-MVM" class="headerlink" title="MVC, MVP and MVM"></a>MVC, MVP and MVM</h1><p>一个典型的MVC模式如下图所示：<br><img src="!--￼0--&gt;/assets/image/MVC.png" alt="MVC"></p>
+<p>MVC模式在实践中其实并不适合大规模Android应用的开发，因为Android从的设计上来说，activity/fragment更像是View层的组件和controller的结合，因为单纯的XML布局不能完成非常复杂的交互逻辑。工作项目由于一开始（2012年左右）的设计是MVC的，activity承担了view和controller的角色，工作中一个Activity耦合了展现层的逻辑和controller的逻辑后达到了4K+的行数，一个非常恐怖的数字。所以必须要对之进行解耦重构，其中MVP和MVVM引起了我们的注意，MVP模式见下图：</p>
+<p><img src="!--￼1--&gt;/assets/image/MVP.jpg" alt="MVP"></p>
+<p>MVP模式是从MVC派生出来的，但是它阻止了model和view的交流，使业务逻辑与展示解耦，MVP模式中，activity承担的是View的角色，Presenter和VIew互相依赖（为了解耦有的时候会使用接口和抽象类，这个其实有点MVVM的意思了），Presenter是View和Model的一个桥梁。Presenter和View是一一对应的，是View的一种抽象。MVP模式在解耦的层面做的不如MVVM彻底。关于MVP模式的讨论可以参见<a href="http://antonioleiva.com/mvp-android/" target="_blank" rel="external">这篇文章</a>.</p>
+<p>MVVM模式是在MVP模式上进一步解耦而派生出来的，见下图：</p>
+<p><img src="!--￼2--&gt;/assets/image/MVVM.png" alt="MVVM"></p>
+<p>MVVM和MVP模式的区别在于View对于ViewModel来说是透明的，ViewModel对于Model来说是透明的，ViewModel持有View的回调，Model持有ViewModel的回调，这样就实现View，ViewModel，Model的解耦。</p>
+<p>更多关于MVC, MVP, MVVM模式的讨论可以看一下<a href="http://blogs.k10world.com/technology/difference-between-mvc-vs-mvp-vs-mvvm/" target="_blank" rel="external">这篇文章</a>.</p>
+<h1 id="Demo"><a href="#Demo" class="headerlink" title="Demo"></a>Demo</h1><p>以一个点击button发送网络请求，并对结果进行处理的demo为例。<br><code>Activity</code>的代码如下：</p>
+<pre><code>public class MVVMDemoActivity extends ActionBarActivity
+    implements IViewModelCallback {
+
+    MVVMDemoViewModel viewModel;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_mvvmdemo);
+
+        viewModel = new MVVMDemoViewModel(this);
+        findViewById(R.id.sendrequest).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                viewModel.action();
+            }
+        });
+    }
+
+    @Override
+    public void onDataReceive() {
+        //数据回来后进行视图的更新
+    }
+
+    @Override
+    public void onError() {
+        //数据请求失败的时候做一些处理
+    }
+}
+</code></pre><p>可以看到Activity中只负责了View层的展示逻辑，毫无接收参数设置参数等不属于View的操作。</p>
+<p><code>ViewModel</code>的代码如下：</p>
+<pre><code>public class MVVMDemoViewModel implements IRequestCallback {
+
+    IViewModelCallback viewListener;
+    DataRequestModel model;
+
+    public MVVMDemoViewModel(IViewModelCallback viewListener) {
+        this.viewListener = viewListener;
+        model = new DataRequestModel(this);
+    }
+
+    public void action() {
+        //这里可以做一些参数的初始化操作
+        //......
+        model.sendRequest();
+    }
+
+    @Override
+    public void onSuccess() {
+        viewListener.onDataReceive();
+    }
+
+    @Override
+    public void onError() {
+        viewListener.onError();
+    }
+}
+</code></pre><p>View层对于ViewModel来说是透明的，ViewModel只负责对实现了IViewModelCallback类型进行操作。ViewModel可以做一些参数的获取和设置等既不属于View层也不是Model层面的操作，可以实现视图展示层和业务代码的解耦。</p>
+<p><code>Model</code>层的代码如下：</p>
+<pre><code>public class DataRequestModel {
+    private IRequestCallback IRequestCallback;
+
+    public DataRequestModel(IRequestCallback IRequestCallback) {
+        this.IRequestCallback = IRequestCallback;
+    }
+
+    public void sendRequest() {
+        //***模拟网络请求
+        //connecting...
+        //网络请求成功
+        IRequestCallback.onSuccess();
+        //网络请求失败
+        IRequestCallback.onError();
+    }
+}
+</code></pre><p>View和ViewModel对于Model来说都是透明的，Model只负责进行网络请求，这个业务是非常独立的，可以说放之四海而皆准。</p>
+<p>两个接口的代码如下：</p>
+<pre><code>public interface IViewModelCallback {
+    void onDataReceive();
+    void onError();
+}
+
+public interface IRequestCallback {
+    void onSuccess();
+    void onError();
+}
+</code></pre><h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可见，MVVM在比较大规模的Android应用的开发中可以做到一个很好的解耦，工作实践中也证实了这一点。</p>
+</div></article></div></section><footer><div class="paginator"><a href="/2015/07/08/Android-Support-Library-翻译/" class="prev">PREV</a><a href="/2015/05/11/singleton-memory-leak/" class="next">NEXT</a></div><div data-thread-key="2015/05/18/MVP-Pattern/" data-title="Android开发中的MVVM模式实践" data-url="http://lz55.github.io/2015/05/18/MVP-Pattern/" data-author-key="1" class="ds-thread"></div><script>var duoshuoQuery = {short_name:"lz55"};
+(function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+     || document.getElementsByTagName('body')[0]).appendChild(ds);
+})();
+
+</script><div class="copyright"><p>© 2015 - 2016 <a href="http://lz55.github.io">lz55</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and <a href="https://github.com/pinggod/hexo-theme-apollo" target="_blank">hexo-theme-apollo</a>.</p></div></footer></div><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-65933410-1",'auto');ga('send','pageview');</script></body></html>

@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://lz55.github.io/2016/08/18/test-md/</loc>
+    
+    <lastmod>2016-08-18T14:11:57.000Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>http://lz55.github.io/2015/10/11/java-weak-references/</loc>
     
     <lastmod>2016-08-18T12:10:36.000Z</lastmod>
@@ -30,13 +37,6 @@
   </url>
   
   <url>
-    <loc>http://lz55.github.io/2015/07/08/Android-Support-Library-%E7%BF%BB%E8%AF%91/</loc>
-    
-    <lastmod>2016-05-22T05:19:25.000Z</lastmod>
-    
-  </url>
-  
-  <url>
     <loc>http://lz55.github.io/2015/05/11/singleton-memory-leak/</loc>
     
     <lastmod>2016-05-22T05:19:25.000Z</lastmod>
@@ -44,14 +44,21 @@
   </url>
   
   <url>
-    <loc>http://lz55.github.io/2015/07/16/displaying-bitmaps-efficiently/</loc>
+    <loc>http://lz55.github.io/2015/05/18/MVP-Pattern/</loc>
     
     <lastmod>2016-05-22T05:19:25.000Z</lastmod>
     
   </url>
   
   <url>
-    <loc>http://lz55.github.io/2015/05/18/MVP-Pattern/</loc>
+    <loc>http://lz55.github.io/2015/07/08/Android-Support-Library-%E7%BF%BB%E8%AF%91/</loc>
+    
+    <lastmod>2016-05-22T05:19:25.000Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://lz55.github.io/2015/07/16/displaying-bitmaps-efficiently/</loc>
     
     <lastmod>2016-05-22T05:19:25.000Z</lastmod>
     

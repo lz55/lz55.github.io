@@ -68,104 +68,21 @@
     <link href="http://lz55.github.io/2015/10/11/java-weak-references/"/>
     <id>http://lz55.github.io/2015/10/11/java-weak-references/</id>
     <published>2015-10-10T16:00:00.000Z</published>
-    <updated>2016-08-18T12:10:36.000Z</updated>
+    <updated>2016-08-19T11:30:30.000Z</updated>
     
     <content type="html"><![CDATA[<h1 id="强引用"><a href="#强引用" class="headerlink" title="强引用"></a>强引用</h1><p>一般对Java对象的构造用的就是强引用: </p>
 <pre><code>Object o = new Object();
 </code></pre><p>除非对象被置为null，否则虚拟机即使OOM也不会回收掉强引用。</p>
 <h1 id="软引用"><a href="#软引用" class="headerlink" title="软引用"></a>软引用</h1><p>软引用的一般用法：</p>
-<pre><code>Object o = new Object();
-SoftReference&lt;Object&gt; softReference = new SoftReference&lt;Object&gt;(o);
-</code></pre><p>只有内存不足的时候才能被GC回收掉，如果构造函数中传入了ReferenceQueue，当该引用指向的对象被标记为垃圾的时候，这个引用对象会自动地加入到引用队列里面，我们可以通过ReferenceQueue来跟踪被回收的软引用，并在适当时候将其清除掉。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">Object o = <span class="keyword">new</span> Object();</div><div class="line">SoftReference&lt;Object&gt; softReference = <span class="keyword">new</span> SoftReference&lt;Object&gt;(o);</div></pre></td></tr></table></figure>
+<p>只有内存不足的时候才能被GC回收掉，如果构造函数中传入了ReferenceQueue，当该引用指向的对象被标记为垃圾的时候，这个引用对象会自动地加入到引用队列里面，我们可以通过ReferenceQueue来跟踪被回收的软引用，并在适当时候将其清除掉。</p>
 <h1 id="弱引用"><a href="#弱引用" class="headerlink" title="弱引用"></a>弱引用</h1><p>弱引用的一般用法：</p>
-<pre><code>Object o = new Object();
-WeakReference&lt;String&gt; abcWeakRef = new WeakReference&lt;String&gt;(o);
-</code></pre><p>当一个对象只被弱引用引用的时候就会被GC回收掉，比如将上面的代码添加一句：<code>o = null;</code><br>同样的，当一个对象被标记为垃圾的时候会加入到引用队列。<br>下面通过一个例子来验证一下：</p>
-<pre><code>public class ReferenceTest {
-    private static ReferenceQueue&lt;VeryBig&gt; rq = new ReferenceQueue&lt;VeryBig&gt;();
-
-    public static void checkQueue() {
-        Reference&lt;? extends VeryBig&gt; ref = null;
-        while ((ref = rq.poll()) != null) {
-            if (ref != null) {
-                System.out.println(&quot;In queue: &quot; + ((VeryBigWeakReference) (ref)).id);
-            }
-        }
-    }
-
-    public static void main(String args[]) {
-        int size = 3;
-        LinkedList&lt;WeakReference&lt;VeryBig&gt;&gt; weakList = new LinkedList&lt;WeakReference&lt;VeryBig&gt;&gt;();
-        for (int i = 0; i &lt; size; i++) {
-            weakList.add(new VeryBigWeakReference(new VeryBig(&quot;Weak &quot; + i), rq));
-            System.out.println(&quot;Just created weak: &quot; + weakList.getLast());
-
-        }
-
-        // 将第二个弱引用对象变为强引用
-        VeryBig strongRef = weakList.get(1).get();
-
-        // 检查一遍
-        checkQueue();
-
-        System.gc();
-        try { // 休息几秒，让上面的垃圾回收线程运行完成
-            Thread.currentThread().sleep(10000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        // 在检查一遍
-        checkQueue();
-
-        // 检查对象
-        for (int i = 0; i &lt; size; i++) {
-            if (weakList.get(i).get() == null) {
-                System.out.println(&quot;obj &quot; + i + &quot; is null!&quot;);
-            }
-        }
-
-        // 检查是否还在引用队列
-        checkQueue();
-    }
-
-    private static class VeryBig {
-        public String id;
-        // 占用空间,让线程进行回收
-        byte[] b = new byte[2 * 1024];
-
-        public VeryBig(String id) {
-            this.id = id;
-        }
-
-        protected void finalize() {
-            System.out.println(&quot;Finalizing VeryBig &quot; + id);
-        }
-    }
-
-    private static class VeryBigWeakReference extends WeakReference&lt;VeryBig&gt; {
-        public String id;
-
-        public VeryBigWeakReference(VeryBig big, ReferenceQueue&lt;VeryBig&gt; rq) {
-            super(big, rq);
-            this.id = big.id;
-        }
-
-        protected void finalize() {
-            System.out.println(&quot;Finalizing VeryBigWeakReference &quot; + id);
-        }
-    }
-}
-</code></pre><p>运行程序：</p>
-<pre><code>Just created weak: ReferenceTest$VeryBigWeakReference@7440e464
-Just created weak: ReferenceTest$VeryBigWeakReference@49476842
-Just created weak: ReferenceTest$VeryBigWeakReference@78308db1
-Finalizing VeryBig Weak 2
-Finalizing VeryBig Weak 0
-In queue: Weak 0
-In queue: Weak 2
-obj 0 is null!
-obj 2 is null!
-</code></pre><p>OK，当调用<code>System.gc();</code>之前ReferenceQueue里面并没有数据，调用之后发现引用对象2和1的<code>finalize()</code>方法被执行，并且对象2和1被添加到了引用队列，调用引用队列的<code>poll()</code>方法即将其清除掉，最后一遍的<code>checkQueue()</code>没有发现任何对象引用。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">Object o = <span class="keyword">new</span> Object();</div><div class="line">WeakReference&lt;String&gt; abcWeakRef = <span class="keyword">new</span> WeakReference&lt;String&gt;(o);</div></pre></td></tr></table></figure>
+<p>当一个对象只被弱引用引用的时候就会被GC回收掉，比如将上面的代码添加一句：<code>o = null;</code><br>同样的，当一个对象被标记为垃圾的时候会加入到引用队列。<br>下面通过一个例子来验证一下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ReferenceTest</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">static</span> ReferenceQueue&lt;VeryBig&gt; rq = <span class="keyword">new</span> ReferenceQueue&lt;VeryBig&gt;();</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">checkQueue</span><span class="params">()</span> </span>&#123;</div><div class="line">        Reference&lt;? extends VeryBig&gt; ref = <span class="keyword">null</span>;</div><div class="line">        <span class="keyword">while</span> ((ref = rq.poll()) != <span class="keyword">null</span>) &#123;</div><div class="line">            <span class="keyword">if</span> (ref != <span class="keyword">null</span>) &#123;</div><div class="line">                System.out.println(<span class="string">"In queue: "</span> + ((VeryBigWeakReference) (ref)).id);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String args[])</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span> size = <span class="number">3</span>;</div><div class="line">        LinkedList&lt;WeakReference&lt;VeryBig&gt;&gt; weakList = <span class="keyword">new</span> LinkedList&lt;WeakReference&lt;VeryBig&gt;&gt;();</div><div class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; size; i++) &#123;</div><div class="line">            weakList.add(<span class="keyword">new</span> VeryBigWeakReference(<span class="keyword">new</span> VeryBig(<span class="string">"Weak "</span> + i), rq));</div><div class="line">            System.out.println(<span class="string">"Just created weak: "</span> + weakList.getLast());</div><div class="line"></div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="comment">// 将第二个弱引用对象变为强引用</span></div><div class="line">        VeryBig strongRef = weakList.get(<span class="number">1</span>).get();</div><div class="line"></div><div class="line">        <span class="comment">// 检查一遍</span></div><div class="line">        checkQueue();</div><div class="line"></div><div class="line">        System.gc();</div><div class="line">        <span class="keyword">try</span> &#123; <span class="comment">// 休息几秒，让上面的垃圾回收线程运行完成</span></div><div class="line">            Thread.currentThread().sleep(<span class="number">10000</span>);</div><div class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</div><div class="line">            e.printStackTrace();</div><div class="line">        &#125;</div><div class="line">        <span class="comment">// 在检查一遍</span></div><div class="line">        checkQueue();</div><div class="line"></div><div class="line">        <span class="comment">// 检查对象</span></div><div class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; size; i++) &#123;</div><div class="line">            <span class="keyword">if</span> (weakList.get(i).get() == <span class="keyword">null</span>) &#123;</div><div class="line">                System.out.println(<span class="string">"obj "</span> + i + <span class="string">" is null!"</span>);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="comment">// 检查是否还在引用队列</span></div><div class="line">        checkQueue();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">VeryBig</span> </span>&#123;</div><div class="line">        <span class="keyword">public</span> String id;</div><div class="line">        <span class="comment">// 占用空间,让线程进行回收</span></div><div class="line">        <span class="keyword">byte</span>[] b = <span class="keyword">new</span> <span class="keyword">byte</span>[<span class="number">2</span> * <span class="number">1024</span>];</div><div class="line"></div><div class="line">        <span class="function"><span class="keyword">public</span> <span class="title">VeryBig</span><span class="params">(String id)</span> </span>&#123;</div><div class="line">            <span class="keyword">this</span>.id = id;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">finalize</span><span class="params">()</span> </span>&#123;</div><div class="line">            System.out.println(<span class="string">"Finalizing VeryBig "</span> + id);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">VeryBigWeakReference</span> <span class="keyword">extends</span> <span class="title">WeakReference</span>&lt;<span class="title">VeryBig</span>&gt; </span>&#123;</div><div class="line">        <span class="keyword">public</span> String id;</div><div class="line"></div><div class="line">        <span class="function"><span class="keyword">public</span> <span class="title">VeryBigWeakReference</span><span class="params">(VeryBig big, ReferenceQueue&lt;VeryBig&gt; rq)</span> </span>&#123;</div><div class="line">            <span class="keyword">super</span>(big, rq);</div><div class="line">            <span class="keyword">this</span>.id = big.id;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">finalize</span><span class="params">()</span> </span>&#123;</div><div class="line">            System.out.println(<span class="string">"Finalizing VeryBigWeakReference "</span> + id);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>运行程序：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">Just created weak: ReferenceTest$VeryBigWeakReference@7440e464</div><div class="line">Just created weak: ReferenceTest$VeryBigWeakReference@49476842</div><div class="line">Just created weak: ReferenceTest$VeryBigWeakReference@78308db1</div><div class="line">Finalizing VeryBig Weak 2</div><div class="line">Finalizing VeryBig Weak 0</div><div class="line">In queue: Weak 0</div><div class="line">In queue: Weak 2</div><div class="line">obj 0 is null!</div><div class="line">obj 2 is null!</div></pre></td></tr></table></figure>
+<p>OK，当调用<code>System.gc();</code>之前ReferenceQueue里面并没有数据，调用之后发现引用对象2和1的<code>finalize()</code>方法被执行，并且对象2和1被添加到了引用队列，调用引用队列的<code>poll()</code>方法即将其清除掉，最后一遍的<code>checkQueue()</code>没有发现任何对象引用。</p>
 <p>非常重要的一点是当将weakRef.get()指向的对象被赋值给一个强引用时，在该强引用被置为null之前，都不会作为弱引用被管理。</p>
 <h1 id="虚引用"><a href="#虚引用" class="headerlink" title="虚引用"></a>虚引用</h1><p>好吧，其实一直不知道虚引用有什么卵用，因为它太弱了，弱到根本无法引用。根本没有办法通过get获得它指向的对象。</p>
 <p>其实弱引用还是有一点作用的，它的唯一作用就是当其指向的对象被回收之后，自己被加入到引用队列，用作记录该引用指向的对象已被销毁。他可以让你知道这个对象什么时候被移除掉，比如你在一个Android APP只能加载一张超大图（先不考虑图片的压缩问题），在加载下一张之前你需要确定系统已经将上一张大图片占据的内存回收掉，这时候就可以使用虚引用并结合ReferenceQueue来做判断。</p>
@@ -194,317 +111,29 @@ obj 2 is null!
     <link href="http://lz55.github.io/2015/08/16/android-touch/"/>
     <id>http://lz55.github.io/2015/08/16/android-touch/</id>
     <published>2015-08-15T16:00:00.000Z</published>
-    <updated>2016-08-18T15:35:50.000Z</updated>
+    <updated>2016-08-19T10:34:14.000Z</updated>
     
     <content type="html"><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>工作中遇到一个业务场景：对WebView做一个封装，能根据webview某个点的透明度决定事件是被消费掉还是透传下去。有两个思路，一个是继承，一个是引用，能继承当然是最好的，但是有的时候也许根本没办法继承webview，比如为了资源回收等问题系统使用同一个webview组件，但不巧的是，为了模块解耦，在别的模块根本拿不到webview的类，只能通过bridge拿到一个引用，这个就必须通过引用来实现了。无论哪种方法都涉及到了touch事件的处理流程，简单梳理下。</p>
 <h1 id="View对touch事件的处理流程"><a href="#View对touch事件的处理流程" class="headerlink" title="View对touch事件的处理流程"></a>View对touch事件的处理流程</h1><p>对Touch事件的处理涉及四个重要的方法：</p>
 <p>dispatchTouchEvent(MotionEvent event)<br>setOnTouchListener(OnTouchListener l)<br>onTouchEvent(MotionEvent event)</p>
 <p>先了解一下<code>dispatchTouchEvent(MotionEvent event)</code>:</p>
-<pre><code>/**
- * Pass the touch screen motion event down to the target view, or this
- * view if it is the target.
- *
- * @param event The motion event to be dispatched.
- * @return True if the event was handled by the view, false otherwise.
- */
-public boolean dispatchTouchEvent(MotionEvent event) {
-    // If the event should be handled by accessibility focus first.
-    if (event.isTargetAccessibilityFocus()) {
-        // We don&apos;t have focus or no virtual descendant has it, do not handle the event.
-        if (!isAccessibilityFocusedViewOrHost()) {
-            return false;
-        }
-        // We have focus and got the event, then use normal event dispatch.
-        event.setTargetAccessibilityFocus(false);
-    }
-
-    boolean result = false;
-
-    if (mInputEventConsistencyVerifier != null) {
-        mInputEventConsistencyVerifier.onTouchEvent(event, 0);
-    }
-
-    final int actionMasked = event.getActionMasked();
-    if (actionMasked == MotionEvent.ACTION_DOWN) {
-        // Defensive cleanup for new gesture
-        stopNestedScroll();
-    }
-
-    if (onFilterTouchEventForSecurity(event)) {
-        //noinspection SimplifiableIfStatement
-        ListenerInfo li = mListenerInfo;
-        if (li != null &amp;&amp; li.mOnTouchListener != null
-                &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED
-                &amp;&amp; li.mOnTouchListener.onTouch(this, event)) {
-            result = true;
-        }
-        if (!result &amp;&amp; onTouchEvent(event)) {
-            result = true;
-        }
-    }
-
-    if (!result &amp;&amp; mInputEventConsistencyVerifier != null) {
-        mInputEventConsistencyVerifier.onUnhandledEvent(event, 0);
-    }
-
-    // Clean up after nested scrolls if this is the end of a gesture;
-    // also cancel it if we tried an ACTION_DOWN but we didn&apos;t want the rest
-    // of the gesture.
-    if (actionMasked == MotionEvent.ACTION_UP ||
-            actionMasked == MotionEvent.ACTION_CANCEL ||
-            (actionMasked == MotionEvent.ACTION_DOWN &amp;&amp; !result)) {
-        stopNestedScroll();
-    }
-
-    return result;
-}
-</code></pre><p>   代码略长，但是和重点部分是下面的这几句：</p>
-<pre><code>if (onFilterTouchEventForSecurity(event)) {
-       //noinspection SimplifiableIfStatement
-       ListenerInfo li = mListenerInfo;
-       if (li != null &amp;&amp; li.mOnTouchListener != null
-               &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED
-               &amp;&amp; li.mOnTouchListener.onTouch(this, event)) {
-           result = true;
-       }
-       if (!result &amp;&amp; onTouchEvent(event)) {
-           result = true;
-       }
- }
-</code></pre><p>这段代码先判断了通过<code>setOnTouchEvent(OnTouchListener l)</code> 设置的<code>onTouchListener</code>, 如果listener不为空，View 的点击状态是ENABLE，并且<code>onTouchListener.onTouch</code> 返回true，那么给Result置为true。代码接着判断Result为false，才会执行View 自身的<code>onTouchEvent</code> 方法，如果<code>onTouchEvent</code> 返回true则将Result置为true。如果经过这两步Result为true，代表当前事件已经被消费掉了，触发下一次事件。否则是不会触发下一次事件的，典型的表现就是action_down被触发而action_move, action_up不会得到响应。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/**</span></div><div class="line"> * Pass the touch screen motion event down to the target view, or this</div><div class="line"> * view if it is the target.</div><div class="line"> *</div><div class="line"> * <span class="doctag">@param</span> event The motion event to be dispatched.</div><div class="line"> * <span class="doctag">@return</span> True if the event was handled by the view, false otherwise.</div><div class="line"> */</div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">dispatchTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">    <span class="comment">// If the event should be handled by accessibility focus first.</span></div><div class="line">    <span class="keyword">if</span> (event.isTargetAccessibilityFocus()) &#123;</div><div class="line">        <span class="comment">// We don't have focus or no virtual descendant has it, do not handle the event.</span></div><div class="line">        <span class="keyword">if</span> (!isAccessibilityFocusedViewOrHost()) &#123;</div><div class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">        <span class="comment">// We have focus and got the event, then use normal event dispatch.</span></div><div class="line">        event.setTargetAccessibilityFocus(<span class="keyword">false</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">boolean</span> result = <span class="keyword">false</span>;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (mInputEventConsistencyVerifier != <span class="keyword">null</span>) &#123;</div><div class="line">        mInputEventConsistencyVerifier.onTouchEvent(event, <span class="number">0</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">final</span> <span class="keyword">int</span> actionMasked = event.getActionMasked();</div><div class="line">    <span class="keyword">if</span> (actionMasked == MotionEvent.ACTION_DOWN) &#123;</div><div class="line">        <span class="comment">// Defensive cleanup for new gesture</span></div><div class="line">        stopNestedScroll();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (onFilterTouchEventForSecurity(event)) &#123;</div><div class="line">        <span class="comment">//noinspection SimplifiableIfStatement</span></div><div class="line">        ListenerInfo li = mListenerInfo;</div><div class="line">        <span class="keyword">if</span> (li != <span class="keyword">null</span> &amp;&amp; li.mOnTouchListener != <span class="keyword">null</span></div><div class="line">                &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED</div><div class="line">                &amp;&amp; li.mOnTouchListener.onTouch(<span class="keyword">this</span>, event)) &#123;</div><div class="line">            result = <span class="keyword">true</span>;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">if</span> (!result &amp;&amp; onTouchEvent(event)) &#123;</div><div class="line">            result = <span class="keyword">true</span>;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (!result &amp;&amp; mInputEventConsistencyVerifier != <span class="keyword">null</span>) &#123;</div><div class="line">        mInputEventConsistencyVerifier.onUnhandledEvent(event, <span class="number">0</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// Clean up after nested scrolls if this is the end of a gesture;</span></div><div class="line">    <span class="comment">// also cancel it if we tried an ACTION_DOWN but we didn't want the rest</span></div><div class="line">    <span class="comment">// of the gesture.</span></div><div class="line">    <span class="keyword">if</span> (actionMasked == MotionEvent.ACTION_UP ||</div><div class="line">            actionMasked == MotionEvent.ACTION_CANCEL ||</div><div class="line">            (actionMasked == MotionEvent.ACTION_DOWN &amp;&amp; !result)) &#123;</div><div class="line">        stopNestedScroll();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">return</span> result;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>   代码略长，但是和重点部分是下面的这几句：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">if</span> (onFilterTouchEventForSecurity(event)) &#123;</div><div class="line">       <span class="comment">//noinspection SimplifiableIfStatement</span></div><div class="line">       ListenerInfo li = mListenerInfo;</div><div class="line">       <span class="keyword">if</span> (li != <span class="keyword">null</span> &amp;&amp; li.mOnTouchListener != <span class="keyword">null</span></div><div class="line">               &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED</div><div class="line">               &amp;&amp; li.mOnTouchListener.onTouch(<span class="keyword">this</span>, event)) &#123;</div><div class="line">           result = <span class="keyword">true</span>;</div><div class="line">       &#125;</div><div class="line">       <span class="keyword">if</span> (!result &amp;&amp; onTouchEvent(event)) &#123;</div><div class="line">           result = <span class="keyword">true</span>;</div><div class="line">       &#125;</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
+<p>这段代码先判断了通过<code>setOnTouchEvent(OnTouchListener l)</code> 设置的<code>onTouchListener</code>, 如果listener不为空，View 的点击状态是ENABLE，并且<code>onTouchListener.onTouch</code> 返回true，那么给Result置为true。代码接着判断Result为false，才会执行View 自身的<code>onTouchEvent</code> 方法，如果<code>onTouchEvent</code> 返回true则将Result置为true。如果经过这两步Result为true，代表当前事件已经被消费掉了，触发下一次事件。否则是不会触发下一次事件的，典型的表现就是action_down被触发而action_move, action_up不会得到响应。</p>
 <p>也就是说：touch事件会首先触发dispatchTouchEvent方法，并且如果外围设置了onTouchListener会先执行onTouchListener的onTouch方法，只有当onTouch返回false才会执行自身的onTouchEvent方法。</p>
-<p>看一下 <code>onTouchEvent(MotionEvent event)</code>:</p>
-<pre><code>/**
- * Implement this method to handle touch screen motion events.
- * &lt;p&gt;
- * If this method is used to detect click actions, it is recommended that
- * the actions be performed by implementing and calling
- * {@link #performClick()}. This will ensure consistent system behavior,
- * including:
- * &lt;ul&gt;
- * &lt;li&gt;obeying click sound preferences
- * &lt;li&gt;dispatching OnClickListener calls
- * &lt;li&gt;handling {@link AccessibilityNodeInfo#ACTION_CLICK ACTION_CLICK} when
- * accessibility features are enabled
- * &lt;/ul&gt;
- *
- * @param event The motion event.
- * @return True if the event was handled, false otherwise.
- */
-public boolean onTouchEvent(MotionEvent event) {
-    final float x = event.getX();
-    final float y = event.getY();
-    final int viewFlags = mViewFlags;
-
-    if ((viewFlags &amp; ENABLED_MASK) == DISABLED) {
-        if (event.getAction() == MotionEvent.ACTION_UP &amp;&amp; (mPrivateFlags &amp; PFLAG_PRESSED) != 0) {
-            setPressed(false);
-        }
-        // A disabled view that is clickable still consumes the touch
-        // events, it just doesn&apos;t respond to them.
-        return (((viewFlags &amp; CLICKABLE) == CLICKABLE ||
-                (viewFlags &amp; LONG_CLICKABLE) == LONG_CLICKABLE));
-    }
-
-    if (mTouchDelegate != null) {
-        if (mTouchDelegate.onTouchEvent(event)) {
-            return true;
-        }
-    }
-
-    if (((viewFlags &amp; CLICKABLE) == CLICKABLE ||
-            (viewFlags &amp; LONG_CLICKABLE) == LONG_CLICKABLE)) {
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_UP:
-                boolean prepressed = (mPrivateFlags &amp; PFLAG_PREPRESSED) != 0;
-                if ((mPrivateFlags &amp; PFLAG_PRESSED) != 0 || prepressed) {
-                    // take focus if we don&apos;t have it already and we should in
-                    // touch mode.
-                    boolean focusTaken = false;
-                    if (isFocusable() &amp;&amp; isFocusableInTouchMode() &amp;&amp; !isFocused()) {
-                        focusTaken = requestFocus();
-                    }
-
-                    if (prepressed) {
-                        // The button is being released before we actually
-                        // showed it as pressed.  Make it show the pressed
-                        // state now (before scheduling the click) to ensure
-                        // the user sees it.
-                        setPressed(true, x, y);
-                   }
-
-                    if (!mHasPerformedLongPress) {
-                        // This is a tap, so remove the longpress check
-                        removeLongPressCallback();
-
-                        // Only perform take click actions if we were in the pressed state
-                        if (!focusTaken) {
-                            // Use a Runnable and post this rather than calling
-                            // performClick directly. This lets other visual state
-                            // of the view update before click actions start.
-                            if (mPerformClick == null) {
-                                mPerformClick = new PerformClick();
-                            }
-                            if (!post(mPerformClick)) {
-                                performClick();
-                            }
-                        }
-                    }
-
-                    if (mUnsetPressedState == null) {
-                        mUnsetPressedState = new UnsetPressedState();
-                    }
-
-                    if (prepressed) {
-                        postDelayed(mUnsetPressedState,
-                                ViewConfiguration.getPressedStateDuration());
-                    } else if (!post(mUnsetPressedState)) {
-                        // If the post failed, unpress right now
-                        mUnsetPressedState.run();
-                    }
-
-                    removeTapCallback();
-                }
-                break;
-
-            case MotionEvent.ACTION_DOWN:
-                mHasPerformedLongPress = false;
-
-                if (performButtonActionOnTouchDown(event)) {
-                    break;
-                }
-
-                // Walk up the hierarchy to determine if we&apos;re inside a scrolling container.
-                boolean isInScrollingContainer = isInScrollingContainer();
-
-                // For views inside a scrolling container, delay the pressed feedback for
-                // a short period in case this is a scroll.
-                if (isInScrollingContainer) {
-                    mPrivateFlags |= PFLAG_PREPRESSED;
-                    if (mPendingCheckForTap == null) {
-                        mPendingCheckForTap = new CheckForTap();
-                    }
-                    mPendingCheckForTap.x = event.getX();
-                    mPendingCheckForTap.y = event.getY();
-                    postDelayed(mPendingCheckForTap, ViewConfiguration.getTapTimeout());
-                } else {
-                    // Not inside a scrolling container, so show the feedback right away
-                    setPressed(true, x, y);
-                    checkForLongClick(0);
-                }
-                break;
-
-            case MotionEvent.ACTION_CANCEL:
-                setPressed(false);
-                removeTapCallback();
-                removeLongPressCallback();
-                break;
-
-            case MotionEvent.ACTION_MOVE:
-                drawableHotspotChanged(x, y);
-
-                // Be lenient about moving outside of buttons
-                if (!pointInView(x, y, mTouchSlop)) {
-                    // Outside button
-                    removeTapCallback();
-                    if ((mPrivateFlags &amp; PFLAG_PRESSED) != 0) {
-                        // Remove any future long press/tap checks
-                        removeLongPressCallback();
-
-                        setPressed(false);
-                    }
-                }
-                break;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-</code></pre><p>代码的逻辑还是非常清晰的，在该方法中主要是做了Event的action产生click，longPress等事件。</p>
-<h1 id="ViewGroup对touch事件的处理"><a href="#ViewGroup对touch事件的处理" class="headerlink" title="ViewGroup对touch事件的处理"></a>ViewGroup对touch事件的处理</h1><p>ViewGroup和Touch事件相关的方法比起View多了一个onInterceptTouchEvent(MotionEvent ev)，而这个方法代码非常简单：</p>
-<pre><code>public boolean onInterceptTouchEvent(MotionEvent ev) {
-    return false;
-}
-</code></pre><p>但是它的注释却长的吓人：</p>
+<p>看一下 <code>onTouchEvent(MotionEvent event)</code>:<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/**</span></div><div class="line"> * Implement this method to handle touch screen motion events.</div><div class="line"> * &lt;p&gt;</div><div class="line"> * If this method is used to detect click actions, it is recommended that</div><div class="line"> * the actions be performed by implementing and calling</div><div class="line"> * &#123;<span class="doctag">@link</span> #performClick()&#125;. This will ensure consistent system behavior,</div><div class="line"> * including:</div><div class="line"> * &lt;ul&gt;</div><div class="line"> * &lt;li&gt;obeying click sound preferences</div><div class="line"> * &lt;li&gt;dispatching OnClickListener calls</div><div class="line"> * &lt;li&gt;handling &#123;<span class="doctag">@link</span> AccessibilityNodeInfo#ACTION_CLICK ACTION_CLICK&#125; when</div><div class="line"> * accessibility features are enabled</div><div class="line"> * &lt;/ul&gt;</div><div class="line"> *</div><div class="line"> * <span class="doctag">@param</span> event The motion event.</div><div class="line"> * <span class="doctag">@return</span> True if the event was handled, false otherwise.</div><div class="line"> */</div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">    <span class="keyword">final</span> <span class="keyword">float</span> x = event.getX();</div><div class="line">    <span class="keyword">final</span> <span class="keyword">float</span> y = event.getY();</div><div class="line">    <span class="keyword">final</span> <span class="keyword">int</span> viewFlags = mViewFlags;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> ((viewFlags &amp; ENABLED_MASK) == DISABLED) &#123;</div><div class="line">        <span class="keyword">if</span> (event.getAction() == MotionEvent.ACTION_UP &amp;&amp; (mPrivateFlags &amp; PFLAG_PRESSED) != <span class="number">0</span>) &#123;</div><div class="line">            setPressed(<span class="keyword">false</span>);</div><div class="line">        &#125;</div><div class="line">        <span class="comment">// A disabled view that is clickable still consumes the touch</span></div><div class="line">        <span class="comment">// events, it just doesn't respond to them.</span></div><div class="line">        <span class="keyword">return</span> (((viewFlags &amp; CLICKABLE) == CLICKABLE ||</div><div class="line">                (viewFlags &amp; LONG_CLICKABLE) == LONG_CLICKABLE));</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (mTouchDelegate != <span class="keyword">null</span>) &#123;</div><div class="line">        <span class="keyword">if</span> (mTouchDelegate.onTouchEvent(event)) &#123;</div><div class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (((viewFlags &amp; CLICKABLE) == CLICKABLE ||</div><div class="line">            (viewFlags &amp; LONG_CLICKABLE) == LONG_CLICKABLE)) &#123;</div><div class="line">        <span class="keyword">switch</span> (event.getAction()) &#123;</div><div class="line">            <span class="keyword">case</span> MotionEvent.ACTION_UP:</div><div class="line">                <span class="keyword">boolean</span> prepressed = (mPrivateFlags &amp; PFLAG_PREPRESSED) != <span class="number">0</span>;</div><div class="line">                <span class="keyword">if</span> ((mPrivateFlags &amp; PFLAG_PRESSED) != <span class="number">0</span> || prepressed) &#123;</div><div class="line">                    <span class="comment">// take focus if we don't have it already and we should in</span></div><div class="line">                    <span class="comment">// touch mode.</span></div><div class="line">                    <span class="keyword">boolean</span> focusTaken = <span class="keyword">false</span>;</div><div class="line">                    <span class="keyword">if</span> (isFocusable() &amp;&amp; isFocusableInTouchMode() &amp;&amp; !isFocused()) &#123;</div><div class="line">                        focusTaken = requestFocus();</div><div class="line">                    &#125;</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> (prepressed) &#123;</div><div class="line">                        <span class="comment">// The button is being released before we actually</span></div><div class="line">                        <span class="comment">// showed it as pressed.  Make it show the pressed</span></div><div class="line">                        <span class="comment">// state now (before scheduling the click) to ensure</span></div><div class="line">                        <span class="comment">// the user sees it.</span></div><div class="line">                        setPressed(<span class="keyword">true</span>, x, y);</div><div class="line">                   &#125;</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> (!mHasPerformedLongPress) &#123;</div><div class="line">                        <span class="comment">// This is a tap, so remove the longpress check</span></div><div class="line">                        removeLongPressCallback();</div><div class="line"></div><div class="line">                        <span class="comment">// Only perform take click actions if we were in the pressed state</span></div><div class="line">                        <span class="keyword">if</span> (!focusTaken) &#123;</div><div class="line">                            <span class="comment">// Use a Runnable and post this rather than calling</span></div><div class="line">                            <span class="comment">// performClick directly. This lets other visual state</span></div><div class="line">                            <span class="comment">// of the view update before click actions start.</span></div><div class="line">                            <span class="keyword">if</span> (mPerformClick == <span class="keyword">null</span>) &#123;</div><div class="line">                                mPerformClick = <span class="keyword">new</span> PerformClick();</div><div class="line">                            &#125;</div><div class="line">                            <span class="keyword">if</span> (!post(mPerformClick)) &#123;</div><div class="line">                                performClick();</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> (mUnsetPressedState == <span class="keyword">null</span>) &#123;</div><div class="line">                        mUnsetPressedState = <span class="keyword">new</span> UnsetPressedState();</div><div class="line">                    &#125;</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> (prepressed) &#123;</div><div class="line">                        postDelayed(mUnsetPressedState,</div><div class="line">                                ViewConfiguration.getPressedStateDuration());</div><div class="line">                    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!post(mUnsetPressedState)) &#123;</div><div class="line">                        <span class="comment">// If the post failed, unpress right now</span></div><div class="line">                        mUnsetPressedState.run();</div><div class="line">                    &#125;</div><div class="line"></div><div class="line">                    removeTapCallback();</div><div class="line">                &#125;</div><div class="line">                <span class="keyword">break</span>;</div><div class="line"></div><div class="line">            <span class="keyword">case</span> MotionEvent.ACTION_DOWN:</div><div class="line">                mHasPerformedLongPress = <span class="keyword">false</span>;</div><div class="line"></div><div class="line">                <span class="keyword">if</span> (performButtonActionOnTouchDown(event)) &#123;</div><div class="line">                    <span class="keyword">break</span>;</div><div class="line">                &#125;</div><div class="line"></div><div class="line">                <span class="comment">// Walk up the hierarchy to determine if we're inside a scrolling container.</span></div><div class="line">                <span class="keyword">boolean</span> isInScrollingContainer = isInScrollingContainer();</div><div class="line"></div><div class="line">                <span class="comment">// For views inside a scrolling container, delay the pressed feedback for</span></div><div class="line">                <span class="comment">// a short period in case this is a scroll.</span></div><div class="line">                <span class="keyword">if</span> (isInScrollingContainer) &#123;</div><div class="line">                    mPrivateFlags |= PFLAG_PREPRESSED;</div><div class="line">                    <span class="keyword">if</span> (mPendingCheckForTap == <span class="keyword">null</span>) &#123;</div><div class="line">                        mPendingCheckForTap = <span class="keyword">new</span> CheckForTap();</div><div class="line">                    &#125;</div><div class="line">                    mPendingCheckForTap.x = event.getX();</div><div class="line">                    mPendingCheckForTap.y = event.getY();</div><div class="line">                    postDelayed(mPendingCheckForTap, ViewConfiguration.getTapTimeout());</div><div class="line">                &#125; <span class="keyword">else</span> &#123;</div><div class="line">                    <span class="comment">// Not inside a scrolling container, so show the feedback right away</span></div><div class="line">                    setPressed(<span class="keyword">true</span>, x, y);</div><div class="line">                    checkForLongClick(<span class="number">0</span>);</div><div class="line">                &#125;</div><div class="line">                <span class="keyword">break</span>;</div><div class="line"></div><div class="line">            <span class="keyword">case</span> MotionEvent.ACTION_CANCEL:</div><div class="line">                setPressed(<span class="keyword">false</span>);</div><div class="line">                removeTapCallback();</div><div class="line">                removeLongPressCallback();</div><div class="line">                <span class="keyword">break</span>;</div><div class="line"></div><div class="line">            <span class="keyword">case</span> MotionEvent.ACTION_MOVE:</div><div class="line">                drawableHotspotChanged(x, y);</div><div class="line"></div><div class="line">                <span class="comment">// Be lenient about moving outside of buttons</span></div><div class="line">                <span class="keyword">if</span> (!pointInView(x, y, mTouchSlop)) &#123;</div><div class="line">                    <span class="comment">// Outside button</span></div><div class="line">                    removeTapCallback();</div><div class="line">                    <span class="keyword">if</span> ((mPrivateFlags &amp; PFLAG_PRESSED) != <span class="number">0</span>) &#123;</div><div class="line">                        <span class="comment">// Remove any future long press/tap checks</span></div><div class="line">                        removeLongPressCallback();</div><div class="line"></div><div class="line">                        setPressed(<span class="keyword">false</span>);</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">                <span class="keyword">break</span>;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>代码的逻辑还是非常清晰的，在该方法中主要是做了Event的action产生click，longPress等事件。</p>
+<h1 id="ViewGroup对touch事件的处理"><a href="#ViewGroup对touch事件的处理" class="headerlink" title="ViewGroup对touch事件的处理"></a>ViewGroup对touch事件的处理</h1><p>ViewGroup和Touch事件相关的方法比起View多了一个onInterceptTouchEvent(MotionEvent ev)，而这个方法代码非常简单：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onInterceptTouchEvent</span><span class="params">(MotionEvent ev)</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>但是它的注释却长的吓人：</p>
 <p><img src="/images/onInterceptTouchEvent.png" alt=""></p>
 <p>用一段测试程序来说明这些流程，假设有一个ViewGroup比如FrameLayout，里面包含了一个Button。</p>
 <p>Activity的代码：</p>
-<pre><code>findViewById(R.id.touch_btn).setOnTouchListener(new       View.OnTouchListener() {
-        @Override
-        public boolean onTouch(View v, MotionEvent event) {
-            Log.d(&quot;MyButton&quot;, &quot;OnTouchListener&quot;);
-            return false;
-        }
-    });
-
-    findViewById(R.id.touch_frame_layout).setOnTouchListener(new View.OnTouchListener() {
-        @Override
-        public boolean onTouch(View v, MotionEvent event) {
-            Log.d(&quot;MyFrameLayout&quot;, &quot;OnTouchListener&quot;);
-            return false;
-        }
-    });
-</code></pre><p>MyButton的代码：</p>
-<pre><code>public class MyButton extends Button {
-    public MyButton(Context context) {
-        super(context);
-    }
-
-    public MyButton(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
-
-    public MyButton(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        Log.d(&quot;MyButton&quot;, &quot;onTouchEvent&quot;);
-        return super.onTouchEvent(event);
-    }
-
-    @Override
-    public boolean dispatchTouchEvent(MotionEvent event) {
-        Log.d(&quot;MyButton&quot;, &quot;dispatchTouchEvent&quot;);
-        return super.dispatchTouchEvent(event);
-    }
-}
-</code></pre><p>MyFrameLayout的代码如下:</p>
-<pre><code>public class MyTouchFrameLayout extends FrameLayout {
-    public MyTouchFrameLayout(Context context) {
-        super(context);
-    }
-
-    public MyTouchFrameLayout(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
-
-    public MyTouchFrameLayout(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
-
-    @Override
-    public boolean onInterceptTouchEvent(MotionEvent ev) {
-        Log.d(&quot;MyFrameLayout&quot;, &quot;onInterceptTouchEvent&quot;);
-        return super.onInterceptTouchEvent(ev);
-    }
-
-    @Override
-    public boolean dispatchTouchEvent(MotionEvent ev) {
-        Log.d(&quot;MyFrameLayout&quot;, &quot;dispatchTouchEvent&quot;);
-        return super.dispatchTouchEvent(ev);
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        Log.d(&quot;MyFrameLayout&quot;, &quot;onTouchEvent&quot;);
-        return super.onTouchEvent(event);
-    }
-}
-</code></pre><p>点击button时事件的传递流程如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">findViewById(R.id.touch_btn).setOnTouchListener(<span class="keyword">new</span>       View.OnTouchListener() &#123;</div><div class="line">        <span class="meta">@Override</span></div><div class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouch</span><span class="params">(View v, MotionEvent event)</span> </span>&#123;</div><div class="line">            Log.d(<span class="string">"MyButton"</span>, <span class="string">"OnTouchListener"</span>);</div><div class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">    &#125;);</div><div class="line"></div><div class="line">    findViewById(R.id.touch_frame_layout).setOnTouchListener(<span class="keyword">new</span> View.OnTouchListener() &#123;</div><div class="line">        <span class="meta">@Override</span></div><div class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouch</span><span class="params">(View v, MotionEvent event)</span> </span>&#123;</div><div class="line">            Log.d(<span class="string">"MyFrameLayout"</span>, <span class="string">"OnTouchListener"</span>);</div><div class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">    &#125;);</div></pre></td></tr></table></figure>
+<p>MyButton的代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyButton</span> <span class="keyword">extends</span> <span class="title">Button</span> </span>&#123;</div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyButton</span><span class="params">(Context context)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context);</div><div class="line"> &#125;</div><div class="line"> </div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyButton</span><span class="params">(Context context, AttributeSet attrs)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context, attrs);</div><div class="line"> &#125;</div><div class="line"> </div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyButton</span><span class="params">(Context context, AttributeSet attrs, <span class="keyword">int</span> defStyleAttr)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context, attrs, defStyleAttr);</div><div class="line"> &#125;</div><div class="line"> </div><div class="line"> <span class="meta">@Override</span></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">     Log.d(<span class="string">"MyButton"</span>, <span class="string">"onTouchEvent"</span>);</div><div class="line">     <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line"> &#125;</div><div class="line"> </div><div class="line"> <span class="meta">@Override</span></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">dispatchTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">     Log.d(<span class="string">"MyButton"</span>, <span class="string">"dispatchTouchEvent"</span>);</div><div class="line">     <span class="keyword">return</span> <span class="keyword">super</span>.dispatchTouchEvent(event);</div><div class="line"> &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>MyFrameLayout的代码如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyTouchFrameLayout</span> <span class="keyword">extends</span> <span class="title">FrameLayout</span> </span>&#123;</div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyTouchFrameLayout</span><span class="params">(Context context)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context);</div><div class="line"> &#125;</div><div class="line">	</div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyTouchFrameLayout</span><span class="params">(Context context, AttributeSet attrs)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context, attrs);</div><div class="line"> &#125;</div><div class="line">	</div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyTouchFrameLayout</span><span class="params">(Context context, AttributeSet attrs, <span class="keyword">int</span> defStyleAttr)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context, attrs, defStyleAttr);</div><div class="line"> &#125;</div><div class="line">	</div><div class="line"> <span class="meta">@Override</span></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onInterceptTouchEvent</span><span class="params">(MotionEvent ev)</span> </span>&#123;</div><div class="line">     Log.d(<span class="string">"MyFrameLayout"</span>, <span class="string">"onInterceptTouchEvent"</span>);</div><div class="line">     <span class="keyword">return</span> <span class="keyword">super</span>.onInterceptTouchEvent(ev);</div><div class="line"> &#125;</div><div class="line">	</div><div class="line"> <span class="meta">@Override</span></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">dispatchTouchEvent</span><span class="params">(MotionEvent ev)</span> </span>&#123;</div><div class="line">     Log.d(<span class="string">"MyFrameLayout"</span>, <span class="string">"dispatchTouchEvent"</span>);</div><div class="line">     <span class="keyword">return</span> <span class="keyword">super</span>.dispatchTouchEvent(ev);</div><div class="line"> &#125;</div><div class="line">	</div><div class="line"> <span class="meta">@Override</span></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">     Log.d(<span class="string">"MyFrameLayout"</span>, <span class="string">"onTouchEvent"</span>);</div><div class="line">     <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line"> &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>点击button时事件的传递流程如下：</p>
 <p><strong>action_down</strong></p>
 <ol>
 <li><code>MyFrameLayout﹕ dispatchTouchEvent</code></li>
@@ -533,53 +162,13 @@ public boolean onTouchEvent(MotionEvent event) {
 </ul>
 <h1 id="基于继承关系的PenetrateWebView（可穿透WebView）"><a href="#基于继承关系的PenetrateWebView（可穿透WebView）" class="headerlink" title="基于继承关系的PenetrateWebView（可穿透WebView）"></a>基于继承关系的PenetrateWebView（可穿透WebView）</h1><p>明白了touch事件在View中的传递流程，使用继承来实现PenetrateWebView也就非常简单了。</p>
 <p>首先有一个工具方法来获取某一点的alpha值：</p>
-<pre><code>private static int getAlphaOfViewPoint(View view, int x, int y) {
-    view.setDrawingCacheEnabled(true);
-    Bitmap bmp = view.getDrawingCache(true);
-    int pixel = bmp.getPixel(x, y);
-    int alpha = Color.alpha(pixel);
-    TMDebugLog.logv(&quot;pop_layer.point_alpha &quot;, alpha+&quot;&quot;);
-    view.destroyDrawingCache();
-    return alpha;
-}
-</code></pre><p>然后再自定义WebView中重写onTouchEvent方法：</p>
-<pre><code> public boolean onTouchEvent(MotionEvent event) {
-    try {
-        if (event.getY() &lt; 0 || event.getX() &lt; 0)
-            return super.onTouchEvent(event);
-
-        //如果某点的alpha值小于等于阈值，将事件透传下去
-        //反之将事件消费掉
-        if (getAlphaOfViewPoint(this, (int) event.getX(), (int) event.getY()) &lt;= mPenetrateAlpha) {
-            return false;
-        }
-        return super.onTouchEvent(event);
-    } catch (Throwable e) {
-        e.printStackTrace();
-        return super.onTouchEvent(event);
-    }
-}
-</code></pre><p>基于继承关系的PenetrateWebView实现起来还是非常容易的，下面讨论一下基于引用关系的PenetrateWebView。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">int</span> <span class="title">getAlphaOfViewPoint</span><span class="params">(View view, <span class="keyword">int</span> x, <span class="keyword">int</span> y)</span> </span>&#123;</div><div class="line">    view.setDrawingCacheEnabled(<span class="keyword">true</span>);</div><div class="line">    Bitmap bmp = view.getDrawingCache(<span class="keyword">true</span>);</div><div class="line">    <span class="keyword">int</span> pixel = bmp.getPixel(x, y);</div><div class="line">    <span class="keyword">int</span> alpha = Color.alpha(pixel);</div><div class="line">    TMDebugLog.logv(<span class="string">"pop_layer.point_alpha "</span>, alpha+<span class="string">""</span>);</div><div class="line">    view.destroyDrawingCache();</div><div class="line">    <span class="keyword">return</span> alpha;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>然后再自定义WebView中重写onTouchEvent方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">    <span class="keyword">try</span> &#123;</div><div class="line">        <span class="keyword">if</span> (event.getY() &lt; <span class="number">0</span> || event.getX() &lt; <span class="number">0</span>)</div><div class="line">            <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line">           </div><div class="line">        <span class="comment">//如果某点的alpha值小于等于阈值，将事件透传下去</span></div><div class="line">        <span class="comment">//反之将事件消费掉</span></div><div class="line">        <span class="keyword">if</span> (getAlphaOfViewPoint(<span class="keyword">this</span>, (<span class="keyword">int</span>) event.getX(), (<span class="keyword">int</span>) event.getY()) &lt;= mPenetrateAlpha) &#123;</div><div class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line">    &#125; <span class="keyword">catch</span> (Throwable e) &#123;</div><div class="line">        e.printStackTrace();</div><div class="line">        <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>基于继承关系的PenetrateWebView实现起来还是非常容易的，下面讨论一下基于引用关系的PenetrateWebView。</p>
 <h1 id="基于引用关系的PenetrateWebView"><a href="#基于引用关系的PenetrateWebView" class="headerlink" title="基于引用关系的PenetrateWebView"></a>基于引用关系的PenetrateWebView</h1><p>当没有办法继承的时候我首先想到的是设置OnTouchListener，但是onTouch返回true虽然将事件消费掉了，但是就不会执行onTouchEvent方法，也就无法产生click事件，整个WebView失去了交互的能力。返回false更加没有任何意义了，还是没办法控制onTouchEvent。<br>于是想到了在WebView的外部嵌套一层布局实现事件的拦截，一开始没搞清楚ViewGroup中事件的传递流程，在dispatchTouchEvent和onTouchEvent中写逻辑，发现还是没办法实现很好的控制，在阅读了touch相关的代码后，使用下面的方式实现了PenetrateWebView。</p>
-<pre><code>@Override
-public boolean onInterceptTouchEvent(MotionEvent event) {
-    try {
-        if (event.getY() &lt; 0 || event.getX() &lt; 0)
-            return super.onTouchEvent(event);
-        // 如果该点的alpha小于等于阈值，在该布局中拦截下事件，交给上层布局处理，onTouchEvent事件会被执行，onTouchEvent始终返回false，将事件透传下去
-        // 如果该点的alpha大于阈值，将事件交给子View处理，onTouchEvent事件并不会被执行，将事件拦截下来
-        return getAlphaOfViewPoint(this, (int) event.getX(), (int) event.getY()) &lt;= mPenetrateAlpha;
-    } catch (Throwable e) {
-        e.printStackTrace();
-        return false;
-    }
-}
-
-@Override
-public boolean onTouchEvent(MotionEvent event) {
-    return false;//当该方法被执行的时候，将事件交给父类布局去处理
-}
-</code></pre><h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onInterceptTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">    <span class="keyword">try</span> &#123;</div><div class="line">        <span class="keyword">if</span> (event.getY() &lt; <span class="number">0</span> || event.getX() &lt; <span class="number">0</span>)</div><div class="line">            <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line">        <span class="comment">// 如果该点的alpha小于等于阈值，在该布局中拦截下事件，交给上层布局处理，onTouchEvent事件会被执行，onTouchEvent始终返回false，将事件透传下去</span></div><div class="line">        <span class="comment">// 如果该点的alpha大于阈值，将事件交给子View处理，onTouchEvent事件并不会被执行，将事件拦截下来</span></div><div class="line">        <span class="keyword">return</span> getAlphaOfViewPoint(<span class="keyword">this</span>, (<span class="keyword">int</span>) event.getX(), (<span class="keyword">int</span>) event.getY()) &lt;= mPenetrateAlpha;</div><div class="line">    &#125; <span class="keyword">catch</span> (Throwable e) &#123;</div><div class="line">        e.printStackTrace();</div><div class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;<span class="comment">//当该方法被执行的时候，将事件交给父类布局去处理</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ol>
 <li>View设置OnTouchListener之后，如果onTouch返回true那么onTouchEvent方法不会被执行。</li>
 <li>click事件是在onTouchEvent方法中产生的。</li>
 <li>ViewGroup中Touch事件传递是从外到内的，子View倒序遍历。</li>
@@ -607,252 +196,39 @@ public boolean onTouchEvent(MotionEvent event) {
     <link href="http://lz55.github.io/2015/07/16/displaying-bitmaps-efficiently/"/>
     <id>http://lz55.github.io/2015/07/16/displaying-bitmaps-efficiently/</id>
     <published>2015-07-15T16:00:00.000Z</published>
-    <updated>2016-05-22T05:19:25.000Z</updated>
+    <updated>2016-08-19T11:32:53.000Z</updated>
     
     <content type="html"><![CDATA[<p><em>Google官方教程原文链接：<a href="http://developer.android.com/training/displaying-bitmaps/index.html" target="_blank" rel="external">http://developer.android.com/training/displaying-bitmaps/index.html</a></em></p>
 <h1 id="1-高效加载大图"><a href="#1-高效加载大图" class="headerlink" title="1. 高效加载大图"></a>1. 高效加载大图</h1><h2 id="1-1-读取bitmap的dimension和type"><a href="#1-1-读取bitmap的dimension和type" class="headerlink" title="1.1 读取bitmap的dimension和type"></a>1.1 读取bitmap的dimension和type</h2><p>BitmapFactory提供了一些方法来通过不同的途径创建bitmap，比如：decodeByteArray(), decodeFile(), decodeResource()等。但是这些方法都试图为图片分配内存，因此很容易OOM。为此每种方法都有一个BitmapFactory.Options参数，为该参数设置inJustDecodeBounds为true就可以在对图片解码的时候不分配内存。bitmap会返回null，但是bitmap的outWidth，outHeight，和outMimeType却可以获得。</p>
-<pre><code>BitmapFactory.Options options = new BitmapFactory.Options();
-options.inJustDecodeBounds = true;
-BitmapFactory.decodeResource(getResources(), R.id.myimage, options);
-int imageHeight = options.outHeight;
-int imageWidth = options.outWidth;
-String imageType = options.outMimeType;
-</code></pre><p>为了避免OOM，记得对图片解码之前检查一下dimension。</p>
-<p>##1.2 将图片质量降级加载进内存<br>将一张1024<em>768的大图加载进一个128</em>96尺寸的ImageView是非常不值得的，为此我们需要将图片进行降级操作。在bitmap的configuration为ARGB_8888的情况下，吧BitmapFactory.Options的inSampleSize属性设置为4，就可以把一张2048<em>1536的图片降级为 512</em>384的，内存占用从12M降低为0.75M。</p>
-<pre><code>public static int calculateInSampleSize(
-        BitmapFactory.Options options, int reqWidth,     int reqHeight) {
-    // Raw height and width of image
-    final int height = options.outHeight;
-    final int width = options.outWidth;
-    int inSampleSize = 1;
-
-    if (height &gt; reqHeight || width &gt; reqWidth) {
-
-        final int halfHeight = height / 2;
-        final int halfWidth = width / 2;
-
-        // Calculate the largest inSampleSize value that is a power of 2 and keeps both
-        // height and width larger than the requested height and width.
-        while ((halfHeight / inSampleSize) &gt; reqHeight
-                &amp;&amp; (halfWidth / inSampleSize) &gt; reqWidth) {
-            inSampleSize *= 2;
-        }
-    }
-
-    return inSampleSize;
-}
-</code></pre><p>总体的降级加载大图的流程如下所示：</p>
-<pre><code>public static Bitmap decodeSampledBitmapFromResource(Resources res, int resId,
-        int reqWidth, int reqHeight) {
-
-    // First decode with inJustDecodeBounds=true to check dimensions
-    final BitmapFactory.Options options = new BitmapFactory.Options();
-    options.inJustDecodeBounds = true;
-    BitmapFactory.decodeResource(res, resId, options);
-
-    // Calculate inSampleSize
-    options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-
-    // Decode bitmap with inSampleSize set
-    options.inJustDecodeBounds = false;
-    return BitmapFactory.decodeResource(res, resId, options);
-}
-</code></pre><p>通过下面这行代码可以轻松地将一个大图变为一个100*100的小图。</p>
-<pre><code>mImageView.setImageBitmap(
-    decodeSampledBitmapFromResource(getResources(), R.id.myimage, 100, 100));
-</code></pre><h1 id="2-避免在UI线程处理Bitmap"><a href="#2-避免在UI线程处理Bitmap" class="headerlink" title="2. 避免在UI线程处理Bitmap"></a>2. 避免在UI线程处理Bitmap</h1><p>一句话：只要不是从内存中读取图片并处理，都应该放到后台线程中，以免阻塞UI线程。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">BitmapFactory.Options options = <span class="keyword">new</span> BitmapFactory.Options();</div><div class="line">options.inJustDecodeBounds = <span class="keyword">true</span>;</div><div class="line">BitmapFactory.decodeResource(getResources(), R.id.myimage, options);</div><div class="line"><span class="keyword">int</span> imageHeight = options.outHeight;</div><div class="line"><span class="keyword">int</span> imageWidth = options.outWidth;</div><div class="line">String imageType = options.outMimeType;</div></pre></td></tr></table></figure>
+<p>为了避免OOM，记得对图片解码之前检查一下dimension。</p>
+<h2 id="1-2-将图片质量降级加载进内存"><a href="#1-2-将图片质量降级加载进内存" class="headerlink" title="1.2 将图片质量降级加载进内存"></a>1.2 将图片质量降级加载进内存</h2><p>将一张1024<em>768的大图加载进一个128</em>96尺寸的ImageView是非常不值得的，为此我们需要将图片进行降级操作。在bitmap的configuration为ARGB_8888的情况下，吧BitmapFactory.Options的inSampleSize属性设置为4，就可以把一张2048<em>1536的图片降级为 512</em>384的，内存占用从12M降低为0.75M。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">int</span> <span class="title">calculateInSampleSize</span><span class="params">(</span></span></div><div class="line">           BitmapFactory.Options options, <span class="keyword">int</span> reqWidth,     <span class="keyword">int</span> reqHeight) &#123;</div><div class="line">    <span class="comment">// Raw height and width of image</span></div><div class="line">    <span class="keyword">final</span> <span class="keyword">int</span> height = options.outHeight;</div><div class="line">    <span class="keyword">final</span> <span class="keyword">int</span> width = options.outWidth;</div><div class="line">    <span class="keyword">int</span> inSampleSize = <span class="number">1</span>;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (height &gt; reqHeight || width &gt; reqWidth) &#123;</div><div class="line"></div><div class="line">        <span class="keyword">final</span> <span class="keyword">int</span> halfHeight = height / <span class="number">2</span>;</div><div class="line">        <span class="keyword">final</span> <span class="keyword">int</span> halfWidth = width / <span class="number">2</span>;</div><div class="line"></div><div class="line">        <span class="comment">// Calculate the largest inSampleSize value that is a power of 2 and keeps both</span></div><div class="line">        <span class="comment">// height and width larger than the requested height and width.</span></div><div class="line">        <span class="keyword">while</span> ((halfHeight / inSampleSize) &gt; reqHeight</div><div class="line">                &amp;&amp; (halfWidth / inSampleSize) &gt; reqWidth) &#123;</div><div class="line">            inSampleSize *= <span class="number">2</span>;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">return</span> inSampleSize;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>总体的降级加载大图的流程如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> Bitmap <span class="title">decodeSampledBitmapFromResource</span><span class="params">(Resources res, <span class="keyword">int</span> resId,</span></span></div><div class="line">        <span class="keyword">int</span> reqWidth, <span class="keyword">int</span> reqHeight) &#123;</div><div class="line"></div><div class="line">    <span class="comment">// First decode with inJustDecodeBounds=true to check dimensions</span></div><div class="line">    <span class="keyword">final</span> BitmapFactory.Options options = <span class="keyword">new</span> BitmapFactory.Options();</div><div class="line">    options.inJustDecodeBounds = <span class="keyword">true</span>;</div><div class="line">    BitmapFactory.decodeResource(res, resId, options);</div><div class="line"></div><div class="line">    <span class="comment">// Calculate inSampleSize</span></div><div class="line">    options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);</div><div class="line"></div><div class="line">    <span class="comment">// Decode bitmap with inSampleSize set</span></div><div class="line">    options.inJustDecodeBounds = <span class="keyword">false</span>;</div><div class="line">    <span class="keyword">return</span> BitmapFactory.decodeResource(res, resId, options);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>通过下面这行代码可以轻松地将一个大图变为一个100*100的小图。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">mImageView.setImageBitmap(</div><div class="line">    decodeSampledBitmapFromResource(getResources(), R.id.myimage, <span class="number">100</span>, <span class="number">100</span>));</div></pre></td></tr></table></figure>
+<h1 id="2-避免在UI线程处理Bitmap"><a href="#2-避免在UI线程处理Bitmap" class="headerlink" title="2. 避免在UI线程处理Bitmap"></a>2. 避免在UI线程处理Bitmap</h1><p>一句话：只要不是从内存中读取图片并处理，都应该放到后台线程中，以免阻塞UI线程。</p>
 <h2 id="2-1-使用AsyncTask"><a href="#2-1-使用AsyncTask" class="headerlink" title="2.1 使用AsyncTask"></a>2.1 使用AsyncTask</h2><p>不考虑并发问题的话可以使用AsyncTask这么处理：</p>
-<pre><code>class BitmapWorkerTask extends AsyncTask&lt;Integer, Void, Bitmap&gt; {
-    private final WeakReference&lt;ImageView&gt; imageViewReference;
-    private int data = 0;
-
-    public BitmapWorkerTask(ImageView imageView) {
-        // Use a WeakReference to ensure the ImageView can be garbage collected
-        imageViewReference = new WeakReference&lt;ImageView&gt;(imageView);
-    }
-
-    // Decode image in background.
-    @Override
-    protected Bitmap doInBackground(Integer... params) {
-        data = params[0];
-        return decodeSampledBitmapFromResource(getResources(), data, 100, 100));
-    }
-
-    // Once complete, see if ImageView is still around and set bitmap.
-    @Override
-    protected void onPostExecute(Bitmap bitmap) {
-        if (imageViewReference != null &amp;&amp; bitmap != null) {
-            final ImageView imageView = imageViewReference.get();
-            if (imageView != null) {
-                imageView.setImageBitmap(bitmap);
-            }
-        }
-    }
-}
-</code></pre><p>使用弱引用可以很好地避免ImageVIew的内存泄露，当然，在任务执行完成的时候ImageView不能保证还在，因此需要检测引用是否为null。</p>
-<p>##2.2 处理并发<br>像在ListView或GridView中，一般会启动非常多的后台线程来加载图片（从网络或者磁盘或者其他来源），这样就不能保证当线程任务执行完成的时候，响应的View没有被回收掉，更加不可能保证任务结束的顺序和开始的顺序一致。<br>这篇文章<a href="http://android-developers.blogspot.com/2010/07/multithreading-for-performance.html" target="_blank" rel="external"> Multithreading for Performance </a>讨论了一种并发问题的解决方案。让ImageView存储一个最近启动的AsyncTask的引用，当任务完成可以检测到它。创建一个Drawable的子类来存储工作任务的引用。在这里继承BitmapDrawable来显示一张占位图。</p>
-<pre><code>static class AsyncDrawable extends BitmapDrawable {
-    private final WeakReference&lt;BitmapWorkerTask&gt; bitmapWorkerTaskReference;
-
-    public AsyncDrawable(Resources res, Bitmap bitmap,
-            BitmapWorkerTask bitmapWorkerTask) {
-        super(res, bitmap);
-        bitmapWorkerTaskReference =
-            new WeakReference&lt;BitmapWorkerTask&gt;(bitmapWorkerTask);
-    }
-
-    public BitmapWorkerTask getBitmapWorkerTask() {
-        return bitmapWorkerTaskReference.get();
-    }
-}
-</code></pre><p>在执行BitmapWorkTask之前，创建一个AsyncDrawable，并且将其与ImageView绑定。</p>
-<pre><code>public void loadBitmap(int resId, ImageView imageView) {
-    if (cancelPotentialWork(resId, imageView)) {
-        final BitmapWorkerTask task = new BitmapWorkerTask(imageView);
-        final AsyncDrawable asyncDrawable =
-                new AsyncDrawable(getResources(), mPlaceHolderBitmap, task);
-        imageView.setImageDrawable(asyncDrawable);
-        task.execute(resId);
-    }
-}
-</code></pre><p>cancelPotentialWork是一个用来检测是否有其他正在运行的后台任务和该ImageView绑定的工具函数，如果有的话将其cancel。</p>
-<pre><code>public static boolean cancelPotentialWork(int data, ImageView imageView) {
-    final BitmapWorkerTask bitmapWorkerTask = getBitmapWorkerTask(imageView);
-
-    if (bitmapWorkerTask != null) {
-        final int bitmapData = bitmapWorkerTask.data;
-        // If bitmapData is not yet set or it differs from the new data
-        if (bitmapData == 0 || bitmapData != data) {
-            // Cancel previous task
-            bitmapWorkerTask.cancel(true);
-        } else {
-            // The same work is already in progress
-            return false;
-        }
-    }
-    // No task associated with the ImageView, or an existing task was cancelled
-    return true;
-}
-</code></pre><p>getBitmapWorkerTask()是一个用来获取和ImageView绑定的后台任务的工具函数。</p>
-<pre><code>private static BitmapWorkerTask getBitmapWorkerTask(ImageView imageView) {
-   if (imageView != null) {
-       final Drawable drawable = imageView.getDrawable();
-       if (drawable instanceof AsyncDrawable) {
-           final AsyncDrawable asyncDrawable = (AsyncDrawable) drawable;
-           return asyncDrawable.getBitmapWorkerTask();
-       }
-    }
-    return null;
-}
-</code></pre><p>最后一步就是在onPostExecute()函数里面监测该任务是否被cancel掉，并且和当前ImageView的绑定task一致。</p>
-<pre><code>class BitmapWorkerTask extends AsyncTask&lt;Integer, Void, Bitmap&gt; {
-    ...
-
-    @Override
-    protected void onPostExecute(Bitmap bitmap) {
-        if (isCancelled()) {
-            bitmap = null;
-        }
-
-        if (imageViewReference != null &amp;&amp; bitmap != null) {
-            final ImageView imageView = imageViewReference.get();
-            final BitmapWorkerTask bitmapWorkerTask =
-                    getBitmapWorkerTask(imageView);
-            if (this == bitmapWorkerTask &amp;&amp; imageView != null) {
-                imageView.setImageBitmap(bitmap);
-            }
-        }
-    }
-}
-</code></pre><p>这种思路可以使用于任何View有回收可能的控件，比如ListView和GridView等。<br><strong><em><code>关键点就是解析完成的时候检测一下改线程或者task是否被cancel，并且是否属于当前ImageView</code></em></strong></p>
-<p>#3. Cache Bitmap<br>这一部分主要是使用内存缓存和磁盘缓存。使用LruCache和DiskLruCache即可。详细内容参考<a href="http://developer.android.com/training/displaying-bitmaps/cache-bitmap.html" target="_blank" rel="external">http://developer.android.com/training/displaying-bitmaps/cache-bitmap.html</a>或者<a href="http://blog.csdn.net/guolin_blog/article/details/9316683" target="_blank" rel="external">http://blog.csdn.net/guolin_blog/article/details/9316683</a><br>需要注意的是，初始化DiskLruCache也需要进行磁盘操作，需要放入后台线程中进行。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">BitmapWorkerTask</span> <span class="keyword">extends</span> <span class="title">AsyncTask</span>&lt;<span class="title">Integer</span>, <span class="title">Void</span>, <span class="title">Bitmap</span>&gt; </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> WeakReference&lt;ImageView&gt; imageViewReference;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">int</span> data = <span class="number">0</span>;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">BitmapWorkerTask</span><span class="params">(ImageView imageView)</span> </span>&#123;</div><div class="line">        <span class="comment">// Use a WeakReference to ensure the ImageView can be garbage collected</span></div><div class="line">        imageViewReference = <span class="keyword">new</span> WeakReference&lt;ImageView&gt;(imageView);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// Decode image in background.</span></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">protected</span> Bitmap <span class="title">doInBackground</span><span class="params">(Integer... params)</span> </span>&#123;</div><div class="line">        data = params[<span class="number">0</span>];</div><div class="line">        <span class="keyword">return</span> decodeSampledBitmapFromResource(getResources(), data, <span class="number">100</span>, <span class="number">100</span>));</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// Once complete, see if ImageView is still around and set bitmap.</span></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onPostExecute</span><span class="params">(Bitmap bitmap)</span> </span>&#123;</div><div class="line">        <span class="keyword">if</span> (imageViewReference != <span class="keyword">null</span> &amp;&amp; bitmap != <span class="keyword">null</span>) &#123;</div><div class="line">            <span class="keyword">final</span> ImageView imageView = imageViewReference.get();</div><div class="line">            <span class="keyword">if</span> (imageView != <span class="keyword">null</span>) &#123;</div><div class="line">                imageView.setImageBitmap(bitmap);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>使用弱引用可以很好地避免ImageVIew的内存泄露，当然，在任务执行完成的时候ImageView不能保证还在，因此需要检测引用是否为null。</p>
+<h2 id="2-2-处理并发"><a href="#2-2-处理并发" class="headerlink" title="2.2 处理并发"></a>2.2 处理并发</h2><p>像在ListView或GridView中，一般会启动非常多的后台线程来加载图片（从网络或者磁盘或者其他来源），这样就不能保证当线程任务执行完成的时候，响应的View没有被回收掉，更加不可能保证任务结束的顺序和开始的顺序一致。<br>这篇文章<a href="http://android-developers.blogspot.com/2010/07/multithreading-for-performance.html" target="_blank" rel="external"> Multithreading for Performance </a>讨论了一种并发问题的解决方案。让ImageView存储一个最近启动的AsyncTask的引用，当任务完成可以检测到它。创建一个Drawable的子类来存储工作任务的引用。在这里继承BitmapDrawable来显示一张占位图。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">AsyncDrawable</span> <span class="keyword">extends</span> <span class="title">BitmapDrawable</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> WeakReference&lt;BitmapWorkerTask&gt; bitmapWorkerTaskReference;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">AsyncDrawable</span><span class="params">(Resources res, Bitmap bitmap,</span></span></div><div class="line">            BitmapWorkerTask bitmapWorkerTask) &#123;</div><div class="line">        <span class="keyword">super</span>(res, bitmap);</div><div class="line">        bitmapWorkerTaskReference =</div><div class="line">            <span class="keyword">new</span> WeakReference&lt;BitmapWorkerTask&gt;(bitmapWorkerTask);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> BitmapWorkerTask <span class="title">getBitmapWorkerTask</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> bitmapWorkerTaskReference.get();</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在执行BitmapWorkTask之前，创建一个AsyncDrawable，并且将其与ImageView绑定。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">loadBitmap</span><span class="params">(<span class="keyword">int</span> resId, ImageView imageView)</span> </span>&#123;</div><div class="line">    <span class="keyword">if</span> (cancelPotentialWork(resId, imageView)) &#123;</div><div class="line">        <span class="keyword">final</span> BitmapWorkerTask task = <span class="keyword">new</span> BitmapWorkerTask(imageView);</div><div class="line">        <span class="keyword">final</span> AsyncDrawable asyncDrawable =</div><div class="line">                <span class="keyword">new</span> AsyncDrawable(getResources(), mPlaceHolderBitmap, task);</div><div class="line">        imageView.setImageDrawable(asyncDrawable);</div><div class="line">        task.execute(resId);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>cancelPotentialWork是一个用来检测是否有其他正在运行的后台任务和该ImageView绑定的工具函数，如果有的话将其cancel。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">boolean</span> <span class="title">cancelPotentialWork</span><span class="params">(<span class="keyword">int</span> data, ImageView imageView)</span> </span>&#123;</div><div class="line">    <span class="keyword">final</span> BitmapWorkerTask bitmapWorkerTask = getBitmapWorkerTask(imageView);</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (bitmapWorkerTask != <span class="keyword">null</span>) &#123;</div><div class="line">        <span class="keyword">final</span> <span class="keyword">int</span> bitmapData = bitmapWorkerTask.data;</div><div class="line">        <span class="comment">// If bitmapData is not yet set or it differs from the new data</span></div><div class="line">        <span class="keyword">if</span> (bitmapData == <span class="number">0</span> || bitmapData != data) &#123;</div><div class="line">            <span class="comment">// Cancel previous task</span></div><div class="line">            bitmapWorkerTask.cancel(<span class="keyword">true</span>);</div><div class="line">        &#125; <span class="keyword">else</span> &#123;</div><div class="line">            <span class="comment">// The same work is already in progress</span></div><div class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// No task associated with the ImageView, or an existing task was cancelled</span></div><div class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>getBitmapWorkerTask()是一个用来获取和ImageView绑定的后台任务的工具函数。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">static</span> BitmapWorkerTask <span class="title">getBitmapWorkerTask</span><span class="params">(ImageView imageView)</span> </span>&#123;</div><div class="line">   <span class="keyword">if</span> (imageView != <span class="keyword">null</span>) &#123;</div><div class="line">       <span class="keyword">final</span> Drawable drawable = imageView.getDrawable();</div><div class="line">       <span class="keyword">if</span> (drawable <span class="keyword">instanceof</span> AsyncDrawable) &#123;</div><div class="line">           <span class="keyword">final</span> AsyncDrawable asyncDrawable = (AsyncDrawable) drawable;</div><div class="line">           <span class="keyword">return</span> asyncDrawable.getBitmapWorkerTask();</div><div class="line">       &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">null</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>最后一步就是在onPostExecute()函数里面监测该任务是否被cancel掉，并且和当前ImageView的绑定task一致。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">BitmapWorkerTask</span> <span class="keyword">extends</span> <span class="title">AsyncTask</span>&lt;<span class="title">Integer</span>, <span class="title">Void</span>, <span class="title">Bitmap</span>&gt; </span>&#123;</div><div class="line">    ...</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onPostExecute</span><span class="params">(Bitmap bitmap)</span> </span>&#123;</div><div class="line">        <span class="keyword">if</span> (isCancelled()) &#123;</div><div class="line">            bitmap = <span class="keyword">null</span>;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="keyword">if</span> (imageViewReference != <span class="keyword">null</span> &amp;&amp; bitmap != <span class="keyword">null</span>) &#123;</div><div class="line">            <span class="keyword">final</span> ImageView imageView = imageViewReference.get();</div><div class="line">            <span class="keyword">final</span> BitmapWorkerTask bitmapWorkerTask =</div><div class="line">                    getBitmapWorkerTask(imageView);</div><div class="line">            <span class="keyword">if</span> (<span class="keyword">this</span> == bitmapWorkerTask &amp;&amp; imageView != <span class="keyword">null</span>) &#123;</div><div class="line">                imageView.setImageBitmap(bitmap);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>这种思路可以使用于任何View有回收可能的控件，比如ListView和GridView等。<br><strong><em><code>关键点就是解析完成的时候检测一下改线程或者task是否被cancel，并且是否属于当前ImageView</code></em></strong></p>
+<h1 id="3-Cache-Bitmap"><a href="#3-Cache-Bitmap" class="headerlink" title="3. Cache Bitmap"></a>3. Cache Bitmap</h1><p>这一部分主要是使用内存缓存和磁盘缓存。使用LruCache和DiskLruCache即可。详细内容参考<a href="http://developer.android.com/training/displaying-bitmaps/cache-bitmap.html" target="_blank" rel="external">http://developer.android.com/training/displaying-bitmaps/cache-bitmap.html</a>或者<a href="http://blog.csdn.net/guolin_blog/article/details/9316683" target="_blank" rel="external">http://blog.csdn.net/guolin_blog/article/details/9316683</a><br>需要注意的是，初始化DiskLruCache也需要进行磁盘操作，需要放入后台线程中进行。</p>
 <h2 id="处理配置的改变"><a href="#处理配置的改变" class="headerlink" title="处理配置的改变"></a>处理配置的改变</h2><p>常见的配置的改变就是屏幕的旋转，如果将LruCache的引用储存在Activity中，当Activity重建的时候必须重新解析图片。可以使用Fragment的setRetainInstance(true)方法使Fragment在configuration change的时候保留实例，将LruCache的引用保存在Fragment中即可避免重新建立Cache。</p>
-<pre><code>private LruCache&lt;String, Bitmap&gt; mMemoryCache;
-
-@Override
-protected void onCreate(Bundle savedInstanceState) {
-    ...
-    RetainFragment retainFragment =
-            RetainFragment.findOrCreateRetainFragment(getFragmentManager());
-    mMemoryCache = retainFragment.mRetainedCache;
-    if (mMemoryCache == null) {
-        mMemoryCache = new LruCache&lt;String, Bitmap&gt;(cacheSize) {
-            ... // Initialize cache here as usual
-        }
-        retainFragment.mRetainedCache = mMemoryCache;
-    }
-    ...
-}
-
-class RetainFragment extends Fragment {
-    private static final String TAG = &quot;RetainFragment&quot;;
-    public LruCache&lt;String, Bitmap&gt; mRetainedCache;
-
-    public RetainFragment() {}
-
-    public static RetainFragment findOrCreateRetainFragment(FragmentManager fm) {
-        RetainFragment fragment = (RetainFragment) fm.findFragmentByTag(TAG);
-        if (fragment == null) {
-            fragment = new RetainFragment();
-            fm.beginTransaction().add(fragment, TAG).commit();
-        }
-        return fragment;
-    }
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setRetainInstance(true);
-    }
-}
-</code></pre><p>#4 管理Bitmap内存</p>
-<h2 id="4-1-Android2-3或者更低的版本"><a href="#4-1-Android2-3或者更低的版本" class="headerlink" title="4.1 Android2.3或者更低的版本"></a>4.1 Android2.3或者更低的版本</h2><p>在Android2.3或者更低的版本，当确定Bitmap不再使用的时候调用recycler()方法来释放内存，这时候就需要判断该Bitmap是否不再使用，可以使用引用计数的方法。</p>
-<pre><code>private int mCacheRefCount = 0;
-private int mDisplayRefCount = 0;
-...
-// Notify the drawable that the displayed state has changed.
-// Keep a count to determine when the drawable is no longer displayed.
-public void setIsDisplayed(boolean isDisplayed) {
-    synchronized (this) {
-        if (isDisplayed) {
-            mDisplayRefCount++;
-            mHasBeenDisplayed = true;
-        } else {
-            mDisplayRefCount--;
-        }
-    }
-    // Check to see if recycle() can be called.
-    checkState();
-}
-
-// Notify the drawable that the cache state has changed.
-// Keep a count to determine when the drawable is no longer being cached.
-public void setIsCached(boolean isCached) {
-    synchronized (this) {
-        if (isCached) {
-            mCacheRefCount++;
-        } else {
-            mCacheRefCount--;
-        }
-    }
-    // Check to see if recycle() can be called.
-    checkState();
-}
-
-private synchronized void checkState() {
-    // If the drawable cache and display ref counts = 0, and this drawable
-    // has been displayed, then recycle.
-    if (mCacheRefCount &lt;= 0 &amp;&amp; mDisplayRefCount &lt;= 0 &amp;&amp; mHasBeenDisplayed
-            &amp;&amp; hasValidBitmap()) {
-        getBitmap().recycle();
-    }
-}
-
-private synchronized boolean hasValidBitmap() {
-    Bitmap bitmap = getBitmap();
-    return bitmap != null &amp;&amp; !bitmap.isRecycled();
-}
-</code></pre><p>##4.2 Android 3.0之后的Bitmap内存管理<br>Android3.0引入了BitmapFactory.Options.inBitmap属性，如果设置了该属性，解码的时候就会尝试重用之前图片分配的内存，但是这个条件比较严苛，Android4.4之前只有两个Bitmap大小相等并且inSampleSize=1才可以，Android4.4及之后，当新的Bitmap的字节数小于等于被重用Bitmap被分配的字节数时，可以进行复用。具体的代码实现见：<a href="http://developer.android.com/training/displaying-bitmaps/manage-memory.html#inBitmap" target="_blank" rel="external">http://developer.android.com/training/displaying-bitmaps/manage-memory.html#inBitmap</a></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">private</span> LruCache&lt;String, Bitmap&gt; mMemoryCache;</div><div class="line"></div><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onCreate</span><span class="params">(Bundle savedInstanceState)</span> </span>&#123;</div><div class="line">    ...</div><div class="line">    RetainFragment retainFragment =</div><div class="line">            RetainFragment.findOrCreateRetainFragment(getFragmentManager());</div><div class="line">    mMemoryCache = retainFragment.mRetainedCache;</div><div class="line">    <span class="keyword">if</span> (mMemoryCache == <span class="keyword">null</span>) &#123;</div><div class="line">        mMemoryCache = <span class="keyword">new</span> LruCache&lt;String, Bitmap&gt;(cacheSize) &#123;</div><div class="line">            ... <span class="comment">// Initialize cache here as usual</span></div><div class="line">        &#125;</div><div class="line">        retainFragment.mRetainedCache = mMemoryCache;</div><div class="line">    &#125;</div><div class="line">    ...</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">RetainFragment</span> <span class="keyword">extends</span> <span class="title">Fragment</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> String TAG = <span class="string">"RetainFragment"</span>;</div><div class="line">    <span class="keyword">public</span> LruCache&lt;String, Bitmap&gt; mRetainedCache;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">RetainFragment</span><span class="params">()</span> </span>&#123;&#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> RetainFragment <span class="title">findOrCreateRetainFragment</span><span class="params">(FragmentManager fm)</span> </span>&#123;</div><div class="line">        RetainFragment fragment = (RetainFragment) fm.findFragmentByTag(TAG);</div><div class="line">        <span class="keyword">if</span> (fragment == <span class="keyword">null</span>) &#123;</div><div class="line">            fragment = <span class="keyword">new</span> RetainFragment();</div><div class="line">            fm.beginTransaction().add(fragment, TAG).commit();</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> fragment;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onCreate</span><span class="params">(Bundle savedInstanceState)</span> </span>&#123;</div><div class="line">        <span class="keyword">super</span>.onCreate(savedInstanceState);</div><div class="line">        setRetainInstance(<span class="keyword">true</span>);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="4-管理Bitmap内存"><a href="#4-管理Bitmap内存" class="headerlink" title="4 管理Bitmap内存"></a>4 管理Bitmap内存</h1><h2 id="4-1-Android2-3或者更低的版本"><a href="#4-1-Android2-3或者更低的版本" class="headerlink" title="4.1 Android2.3或者更低的版本"></a>4.1 Android2.3或者更低的版本</h2><p>在Android2.3或者更低的版本，当确定Bitmap不再使用的时候调用recycler()方法来释放内存，这时候就需要判断该Bitmap是否不再使用，可以使用引用计数的方法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">private</span> <span class="keyword">int</span> mCacheRefCount = <span class="number">0</span>;</div><div class="line"><span class="keyword">private</span> <span class="keyword">int</span> mDisplayRefCount = <span class="number">0</span>;</div><div class="line">...</div><div class="line"><span class="comment">// Notify the drawable that the displayed state has changed.</span></div><div class="line"><span class="comment">// Keep a count to determine when the drawable is no longer displayed.</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setIsDisplayed</span><span class="params">(<span class="keyword">boolean</span> isDisplayed)</span> </span>&#123;</div><div class="line">    <span class="keyword">synchronized</span> (<span class="keyword">this</span>) &#123;</div><div class="line">        <span class="keyword">if</span> (isDisplayed) &#123;</div><div class="line">            mDisplayRefCount++;</div><div class="line">            mHasBeenDisplayed = <span class="keyword">true</span>;</div><div class="line">        &#125; <span class="keyword">else</span> &#123;</div><div class="line">            mDisplayRefCount--;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// Check to see if recycle() can be called.</span></div><div class="line">    checkState();</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// Notify the drawable that the cache state has changed.</span></div><div class="line"><span class="comment">// Keep a count to determine when the drawable is no longer being cached.</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setIsCached</span><span class="params">(<span class="keyword">boolean</span> isCached)</span> </span>&#123;</div><div class="line">    <span class="keyword">synchronized</span> (<span class="keyword">this</span>) &#123;</div><div class="line">        <span class="keyword">if</span> (isCached) &#123;</div><div class="line">            mCacheRefCount++;</div><div class="line">        &#125; <span class="keyword">else</span> &#123;</div><div class="line">            mCacheRefCount--;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// Check to see if recycle() can be called.</span></div><div class="line">    checkState();</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">checkState</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="comment">// If the drawable cache and display ref counts = 0, and this drawable</span></div><div class="line">    <span class="comment">// has been displayed, then recycle.</span></div><div class="line">    <span class="keyword">if</span> (mCacheRefCount &lt;= <span class="number">0</span> &amp;&amp; mDisplayRefCount &lt;= <span class="number">0</span> &amp;&amp; mHasBeenDisplayed</div><div class="line">            &amp;&amp; hasValidBitmap()) &#123;</div><div class="line">        getBitmap().recycle();</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">boolean</span> <span class="title">hasValidBitmap</span><span class="params">()</span> </span>&#123;</div><div class="line">    Bitmap bitmap = getBitmap();</div><div class="line">    <span class="keyword">return</span> bitmap != <span class="keyword">null</span> &amp;&amp; !bitmap.isRecycled();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="4-2-Android-3-0之后的Bitmap内存管理"><a href="#4-2-Android-3-0之后的Bitmap内存管理" class="headerlink" title="4.2 Android 3.0之后的Bitmap内存管理"></a>4.2 Android 3.0之后的Bitmap内存管理</h2><p>Android3.0引入了BitmapFactory.Options.inBitmap属性，如果设置了该属性，解码的时候就会尝试重用之前图片分配的内存，但是这个条件比较严苛，Android4.4之前只有两个Bitmap大小相等并且inSampleSize=1才可以，Android4.4及之后，当新的Bitmap的字节数小于等于被重用Bitmap被分配的字节数时，可以进行复用。具体的代码实现见：<a href="http://developer.android.com/training/displaying-bitmaps/manage-memory.html#inBitmap" target="_blank" rel="external">http://developer.android.com/training/displaying-bitmaps/manage-memory.html#inBitmap</a></p>
 ]]></content>
     
     <summary type="html">
@@ -877,57 +253,19 @@ private synchronized boolean hasValidBitmap() {
     <link href="http://lz55.github.io/2015/07/08/Android-Support-Library-%E7%BF%BB%E8%AF%91/"/>
     <id>http://lz55.github.io/2015/07/08/Android-Support-Library-翻译/</id>
     <published>2015-07-07T16:00:00.000Z</published>
-    <updated>2016-08-18T15:33:55.000Z</updated>
+    <updated>2016-08-19T10:37:59.000Z</updated>
     
     <content type="html"><![CDATA[<p>（原文链接：<a href="http://android-developers.blogspot.com/2015/05/android-design-support-library.html" target="_blank" rel="external">http://android-developers.blogspot.com/2015/05/android-design-support-library.html</a>）</p>
 <p>由于更新了整个Android用户体验的崭新设计语言material design的诞生，Android 5.0（代号：Lollipop）成为史上最重要的一个版本。从详细的规范开始学习material design 是个不错的方案，但这对于开发者，尤其是哪些考虑前向兼容的，这是个不小的挑战。有了最新的Android Design支持库的帮助，我们在其中给大家提供了许多非常重要的material design组件，并且支持Android2.1以上所有的系统版本，开发者可以使用抽屉导航组件，输入文本的浮动标签，floating action button，snackbar，tabs，并且可以使用一个支持手势和滚动的框架来将其组合使用。</p>
 <h1 id="Navigation-View"><a href="#Navigation-View" class="headerlink" title="Navigation View:"></a>Navigation View:</h1><p>对于用户尤其是首次使用某个APP的用户而言，抽屉导航极大程度上降低了在APP内进行统一的个性化和导航的难度。通过提供一个抽屉导航所需的框架和从菜单资源中构建导航条目的功能，NavigationView使得创建抽屉导航变得非常简单。</p>
 <p> <img src="http://3.bp.blogspot.com/-WmBBQQEJIKM/VWikAyy08sI/AAAAAAAABvc/1R36Txk83UI/s400/drawer.png" alt="enter image description here"></p>
 <p>开发者可以像使用DrawerLayout的抽屉导航布局一样使用NavigationView，如下所示：</p>
-<pre><code>&lt;android.support.v4.widget.DrawerLayout
-        xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;
-        xmlns:app=&quot;http://schemas.android.com/apk/res-auto&quot;
-        android:layout_width=&quot;match_parent&quot;
-        android:layout_height=&quot;match_parent&quot;
-        android:fitsSystemWindows=&quot;true&quot;&gt;
-
-    &lt;!-- your content layout --&gt;
-
-    &lt;android.support.design.widget.NavigationView
-            android:layout_width=&quot;wrap_content&quot;
-            android:layout_height=&quot;match_parent&quot;
-            android:layout_gravity=&quot;start&quot;
-            app:headerLayout=&quot;@layout/drawer_header&quot;
-            app:menu=&quot;@menu/drawer&quot;/&gt;
-&lt;/android.support.v4.widget.DrawerLayout&gt;
-</code></pre><p>请注意NavigationView的两个属性：app:headerLayout用来控制头部布局，这是可选的一个属性；app:menu控制用来产生各种导航条目的菜单资源（可以在运行时更新）。NavigationView可以在大于API21的设备中和状态栏进行正确的交互。<br>最简单抽屉菜单可以是一系列Checkable的菜单项的集合。</p>
-<pre><code>&lt;group android:checkableBehavior=&quot;single&quot;&gt;
-    &lt;item
-        android:id=&quot;@+id/navigation_item_1&quot;
-        android:checked=&quot;true&quot;
-        android:icon=&quot;@drawable/ic_android&quot;
-        android:title=&quot;@string/navigation_item_1&quot;/&gt;
-    &lt;item
-        android:id=&quot;@+id/navigation_item_2&quot;
-        android:icon=&quot;@drawable/ic_android&quot;
-        android:title=&quot;@string/navigation_item_2&quot;/&gt;
-&lt;/group&gt;
-</code></pre><p>为了确保用户明确知道自己选中了什么，被选中的抽屉导航的条目会高亮显示。同样可以在抽屉导航中使用subheaders来将条目分割为不同的组合。</p>
-<pre><code>&lt;item
-    android:id=&quot;@+id/navigation_subheader&quot;
-    android:title=&quot;@string/navigation_subheader&quot;&gt;
-    &lt;menu&gt;
-        &lt;item
-            android:id=&quot;@+id/navigation_sub_item_1&quot;
-            android:icon=&quot;@drawable/ic_android&quot;
-            android:title=&quot;@string/navigation_sub_item_1&quot;/&gt;
-        &lt;item
-            android:id=&quot;@+id/navigation_sub_item_2&quot;
-            android:icon=&quot;@drawable/ic_android&quot;
-            android:title=&quot;@string/navigation_sub_item_2&quot;/&gt;
-    &lt;/menu&gt;
-&lt;/item&gt;
-</code></pre><p>通过使用setNavigationItemSelectedListener()可以为抽屉导航设置OnNavigationItemSelectedListener 监听器，当某个条目被选中的时候会产生回调。回调函数中可以得到被点击的MenuItem对象，有了该对象就可以控制选中事件，改变选中状态，加载新的内容，在程序中关闭抽屉导航，或者做其他任何你想要的操作。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">android.support.v4.widget.DrawerLayout</span></span></div><div class="line">        <span class="attr">xmlns:android</span>=<span class="string">"http://schemas.android.com/apk/res/android"</span></div><div class="line">        <span class="attr">xmlns:app</span>=<span class="string">"http://schemas.android.com/apk/res-auto"</span></div><div class="line">        <span class="attr">android:layout_width</span>=<span class="string">"match_parent"</span></div><div class="line">        <span class="attr">android:layout_height</span>=<span class="string">"match_parent"</span></div><div class="line">        <span class="attr">android:fitsSystemWindows</span>=<span class="string">"true"</span>&gt;</div><div class="line"></div><div class="line">    <span class="comment">&lt;!-- your content layout --&gt;</span></div><div class="line"></div><div class="line">    <span class="tag">&lt;<span class="name">android.support.design.widget.NavigationView</span></span></div><div class="line">            <span class="attr">android:layout_width</span>=<span class="string">"wrap_content"</span></div><div class="line">            <span class="attr">android:layout_height</span>=<span class="string">"match_parent"</span></div><div class="line">            <span class="attr">android:layout_gravity</span>=<span class="string">"start"</span></div><div class="line">            <span class="attr">app:headerLayout</span>=<span class="string">"@layout/drawer_header"</span></div><div class="line">            <span class="attr">app:menu</span>=<span class="string">"@menu/drawer"</span>/&gt;</div><div class="line"><span class="tag">&lt;/<span class="name">android.support.v4.widget.DrawerLayout</span>&gt;</span></div></pre></td></tr></table></figure>
+<p>请注意NavigationView的两个属性：app:headerLayout用来控制头部布局，这是可选的一个属性；app:menu控制用来产生各种导航条目的菜单资源（可以在运行时更新）。NavigationView可以在大于API21的设备中和状态栏进行正确的交互。<br>最简单抽屉菜单可以是一系列Checkable的菜单项的集合。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">group</span> <span class="attr">android:checkableBehavior</span>=<span class="string">"single"</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">item</span></span></div><div class="line">        <span class="attr">android:id</span>=<span class="string">"@+id/navigation_item_1"</span></div><div class="line">        <span class="attr">android:checked</span>=<span class="string">"true"</span></div><div class="line">        <span class="attr">android:icon</span>=<span class="string">"@drawable/ic_android"</span></div><div class="line">        <span class="attr">android:title</span>=<span class="string">"@string/navigation_item_1"</span>/&gt;</div><div class="line">    <span class="tag">&lt;<span class="name">item</span></span></div><div class="line">        <span class="attr">android:id</span>=<span class="string">"@+id/navigation_item_2"</span></div><div class="line">        <span class="attr">android:icon</span>=<span class="string">"@drawable/ic_android"</span></div><div class="line">        <span class="attr">android:title</span>=<span class="string">"@string/navigation_item_2"</span>/&gt;</div><div class="line"><span class="tag">&lt;/<span class="name">group</span>&gt;</span></div></pre></td></tr></table></figure>
+<p>为了确保用户明确知道自己选中了什么，被选中的抽屉导航的条目会高亮显示。同样可以在抽屉导航中使用subheaders来将条目分割为不同的组合。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">item</span></span></div><div class="line">    <span class="attr">android:id</span>=<span class="string">"@+id/navigation_subheader"</span></div><div class="line">    <span class="attr">android:title</span>=<span class="string">"@string/navigation_subheader"</span>&gt;</div><div class="line">    <span class="tag">&lt;<span class="name">menu</span>&gt;</span></div><div class="line">        <span class="tag">&lt;<span class="name">item</span></span></div><div class="line">            <span class="attr">android:id</span>=<span class="string">"@+id/navigation_sub_item_1"</span></div><div class="line">            <span class="attr">android:icon</span>=<span class="string">"@drawable/ic_android"</span></div><div class="line">            <span class="attr">android:title</span>=<span class="string">"@string/navigation_sub_item_1"</span>/&gt;</div><div class="line">        <span class="tag">&lt;<span class="name">item</span></span></div><div class="line">            <span class="attr">android:id</span>=<span class="string">"@+id/navigation_sub_item_2"</span></div><div class="line">            <span class="attr">android:icon</span>=<span class="string">"@drawable/ic_android"</span></div><div class="line">            <span class="attr">android:title</span>=<span class="string">"@string/navigation_sub_item_2"</span>/&gt;</div><div class="line">    <span class="tag">&lt;/<span class="name">menu</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">item</span>&gt;</span></div></pre></td></tr></table></figure>
+<p>通过使用setNavigationItemSelectedListener()可以为抽屉导航设置OnNavigationItemSelectedListener 监听器，当某个条目被选中的时候会产生回调。回调函数中可以得到被点击的MenuItem对象，有了该对象就可以控制选中事件，改变选中状态，加载新的内容，在程序中关闭抽屉导航，或者做其他任何你想要的操作。</p>
 <h1 id="输入文本的浮动标签：-Floating-labels-for-editing-text"><a href="#输入文本的浮动标签：-Floating-labels-for-editing-text" class="headerlink" title="输入文本的浮动标签：(Floating labels for editing text)"></a>输入文本的浮动标签：(Floating labels for editing text)</h1><p>在Material Design中，即便简单如EditText也得到了一定程度上的改进。在EditText中，当输入第一个字符之后，提示文本便会被隐藏掉。但是现在开发者可以使用TextInputLayout布局来包装EditText，这样当输入文本的时候，提示文本就会变成一个浮动在EditText上的标签，确保用户永远明确他们想要什么。</p>
 <p> <img src="http://4.bp.blogspot.com/-BUKc5AwzS4A/VWihVlHr9cI/AAAAAAAABvI/rslBAoaHwzA/s320/textinputlayout.png" alt=""></p>
 <p>通过调用setError()方法，开发者还可以在EditText的下面显示错误信息。</p>
@@ -935,61 +273,22 @@ private synchronized boolean hasValidBitmap() {
 <p> <img src="http://2.bp.blogspot.com/-tdrgNYnQZyw/VWiOcfSRoYI/AAAAAAAABuU/6LsOxJFE4hE/s200/image03.png" alt=""></p>
 <p>为了处理FloatingActionButton和其他组件的视觉连贯性特别严苛的情况，除了正常的大小，FloatingActionButton还支持设置最小的尺寸（fabSize=”mini”）。FloatingActionButton继承自ImageView所以开发者可以使用android:src或其他任何方法比如setImageDrawable来控制FloatingActionButton的图案。</p>
 <h1 id="Snackbar："><a href="#Snackbar：" class="headerlink" title="Snackbar："></a>Snackbar：</h1><p>当需要为一个操作提供轻量级的快速的反馈的时候，Snackbar是一个非常完美的选择。Snackbar以一个可选的简单地动作在屏幕或内容文字的底部出现。超过了设定的给定时长之后Snackbar自动地按照设定动画从屏幕消失。另外，在设定时长到期之前，用户也可以将Snackbar滑出屏幕。由于Snackbar具有通过滑动或其他动作和用户交互的能力，因此它比另一种轻量级的反馈机制Toast更加强大，并且开发者可以发现它们的API是相似的。</p>
-<pre><code>Snackbar
-  .make(parentLayout, R.string.snackbar_text, Snackbar.LENGTH_LONG)
-  .setAction(R.string.snackbar_action, myOnClickListener)
-  .show(); // Don’t forget to show!
-</code></pre><p>应该注意的是make()方法的第一个参数是View的一个对象，Snackbar会尝试寻找一个以其底部作为锚点的合适的父类布局。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">Snackbar</div><div class="line">  .make(parentLayout, R.string.snackbar_text, Snackbar.LENGTH_LONG)</div><div class="line">  .setAction(R.string.snackbar_action, myOnClickListener)</div><div class="line">  .show(); <span class="comment">// Don’t forget to show!</span></div></pre></td></tr></table></figure>
+<p>应该注意的是make()方法的第一个参数是View的一个对象，Snackbar会尝试寻找一个以其底部作为锚点的合适的父类布局。</p>
 <h1 id="Tabs："><a href="#Tabs：" class="headerlink" title="Tabs："></a>Tabs：</h1><p>在App中通过Tabs来切换不同的View并不是material design新提出的概念，但是它却是在APP中用来组织不同分类信息的最高等级的导航模式（比如，音乐的不同体裁）。</p>
 <p><img src="http://1.bp.blogspot.com/-liraQhLEn60/VWihbiaXaJI/AAAAAAAABvQ/nKi1_xcx6yk/s320/tabs.png" alt="enter image description here"></p>
 <p>设计库中的TabLayout既实现了View宽度等距离分割的fix tabs，也实现了大小不一，可以水平滑动的scrollable tabs。Tabs可以在代码中添加：</p>
-<pre><code>TabLayout tabLayout = ...;
-tabLayout.addTab(tabLayout.newTab().setText(&quot;Tab 1&quot;));
-</code></pre><p>然而，如果开发者使用ViewPager进行Tab之间的水平分页，可以直接通过PagerAdapter的getPageTitle()方法然后调用setupWithViewPager()方法将二者联系起来，从而直接创建Tab。这保证了Tab被选中时更新ViewPager并且ViewPager切换的时候更新Tab。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">TabLayout tabLayout = ...;</div><div class="line">tabLayout.addTab(tabLayout.newTab().setText(<span class="string">"Tab 1"</span>));</div></pre></td></tr></table></figure>
+<p>然而，如果开发者使用ViewPager进行Tab之间的水平分页，可以直接通过PagerAdapter的getPageTitle()方法然后调用setupWithViewPager()方法将二者联系起来，从而直接创建Tab。这保证了Tab被选中时更新ViewPager并且ViewPager切换的时候更新Tab。</p>
 <h1 id="CoordinatorLayout，手势和滚动："><a href="#CoordinatorLayout，手势和滚动：" class="headerlink" title="CoordinatorLayout，手势和滚动："></a>CoordinatorLayout，手势和滚动：</h1><p>特殊的视觉效果只是material design一个方面，手势操作也是一个符合material design应用非常重要的一部分。Material Design在包括了如触摸波浪效果和有意义的转换动画的同时，还引入了CoordinatorLayout，这个布局可以为字类视图之间的触摸事件提供另一种层面上的控制，再设计库中的很多组件都进行了利用。</p>
 <h1 id="CoordinatorLayout和floating-action-button"><a href="#CoordinatorLayout和floating-action-button" class="headerlink" title="CoordinatorLayout和floating action button:"></a>CoordinatorLayout和floating action button:</h1><p>这两种控件有一个非常棒的使用方式，将floating action button作为CoordinatorLayout的子元素，并且将CoordinatorLayout传递给Snackbar的make()方法，FloatingActionButton利用CoordinatorLayout提供的额外的回调，可以在Snackbar显示的时候自动上移，并在Snackbar消失的时候自动回归原来的位置，这样，Snackbar就不是浮在floating action button上面了，这在所有Android3.0及以上的设备中都可以实现，不需要多余的代码。<br>在CoordinatorLayout中，layoutut_anchor属性和layout_anchorGravity属性配合，可以用来设定浮动视图（比如floating action button）之间的相对位置。</p>
 <h1 id="CoordinatorLayout和app-bar"><a href="#CoordinatorLayout和app-bar" class="headerlink" title="CoordinatorLayout和app bar:"></a>CoordinatorLayout和app bar:</h1><p>另一个关于CoordinatorLayout非常主要的用法就是与app bar（之前的action bar）和滚动策略的配合使用。Toolbar可以更加简单地定制这个APP中标志性的部分的外观和交互，而许多开发者可能已经开始使用它了。而设计库将这个提升了一个等级：通过AppBarLayout，Toolbar和其他视图（比如提供Tab的TabLayout）可以在标记了ScrollingViewBehavior的兄弟视图中和滚动事件交互。因此，开发者可以像这样创建一个布局：</p>
-<pre><code> &lt;android.support.design.widget.CoordinatorLayout
-        xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;
-        xmlns:app=&quot;http://schemas.android.com/apk/res-auto&quot;
-        android:layout_width=&quot;match_parent&quot;
-        android:layout_height=&quot;match_parent&quot;&gt;
-
-     &lt;! -- Your Scrollable View --&gt;
-    &lt;android.support.v7.widget.RecyclerView
-            android:layout_width=&quot;match_parent&quot;
-            android:layout_height=&quot;match_parent&quot;
-            app:layout_behavior=&quot;@string/appbar_scrolling_view_behavior&quot; /&gt;
-
-    &lt;android.support.design.widget.AppBarLayout
-            android:layout_width=&quot;match_parent&quot;
-            android:layout_height=&quot;wrap_content&quot;&gt;
-   &lt;android.support.v7.widget.Toolbar
-                  ...
-                  app:layout_scrollFlags=&quot;scroll|enterAlways&quot;&gt;
-
-        &lt;android.support.design.widget.TabLayout
-                  ...
-                  app:layout_scrollFlags=&quot;scroll|enterAlways&quot;&gt;
-     &lt;/android.support.design.widget.AppBarLayout&gt;
-&lt;/android.support.design.widget.CoordinatorLayout&gt;
-</code></pre><p>这样，当用户滚动RecyclerView的时候AppBarLayout可以根据子类视图的滚动标志来控制他们进入屏幕和离开屏幕的方式。这些滚动标志包括：<br>•    scroll：所有想要滑出屏幕的视图都应该设置这个标志，对于那些未设置的视图，会固定在屏幕顶端。<br>•    enterAlways：这个标志确保了向下滚动的时候视图可见，使quick return模式可用。<br>•    enterAlwaysCollapsed：当一个视图被设置了minHeight并且使用了这个标志之后，那么这个视图只会按照最小的高度进入屏幕，当可滚动的视图到达顶部的时候，它会展开完整的高度。<br>•    exitUntilCollapsed：设置了这个标志之后，视图在离开屏幕之前会先滚动到折叠状态（最小高度）。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"> <span class="tag">&lt;<span class="name">android.support.design.widget.CoordinatorLayout</span></span></div><div class="line">        <span class="attr">xmlns:android</span>=<span class="string">"http://schemas.android.com/apk/res/android"</span></div><div class="line">        <span class="attr">xmlns:app</span>=<span class="string">"http://schemas.android.com/apk/res-auto"</span></div><div class="line">        <span class="attr">android:layout_width</span>=<span class="string">"match_parent"</span></div><div class="line">        <span class="attr">android:layout_height</span>=<span class="string">"match_parent"</span>&gt;</div><div class="line">     </div><div class="line">     <span class="tag">&lt;<span class="name">!</span> <span class="attr">--</span> <span class="attr">Your</span> <span class="attr">Scrollable</span> <span class="attr">View</span> <span class="attr">--</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">android.support.v7.widget.RecyclerView</span></span></div><div class="line">            <span class="attr">android:layout_width</span>=<span class="string">"match_parent"</span></div><div class="line">            <span class="attr">android:layout_height</span>=<span class="string">"match_parent"</span></div><div class="line">            <span class="attr">app:layout_behavior</span>=<span class="string">"@string/appbar_scrolling_view_behavior"</span> /&gt;</div><div class="line"></div><div class="line">    <span class="tag">&lt;<span class="name">android.support.design.widget.AppBarLayout</span></span></div><div class="line">            <span class="attr">android:layout_width</span>=<span class="string">"match_parent"</span></div><div class="line">            <span class="attr">android:layout_height</span>=<span class="string">"wrap_content"</span>&gt;</div><div class="line">   <span class="tag">&lt;<span class="name">android.support.v7.widget.Toolbar</span></span></div><div class="line">                  <span class="attr">...</span></div><div class="line">                  <span class="attr">app:layout_scrollFlags</span>=<span class="string">"scroll|enterAlways"</span>&gt;</div><div class="line"></div><div class="line">        <span class="tag">&lt;<span class="name">android.support.design.widget.TabLayout</span></span></div><div class="line">                  <span class="attr">...</span></div><div class="line">                  <span class="attr">app:layout_scrollFlags</span>=<span class="string">"scroll|enterAlways"</span>&gt;</div><div class="line">     <span class="tag">&lt;/<span class="name">android.support.design.widget.AppBarLayout</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">android.support.design.widget.CoordinatorLayout</span>&gt;</span></div></pre></td></tr></table></figure>
+<p>这样，当用户滚动RecyclerView的时候AppBarLayout可以根据子类视图的滚动标志来控制他们进入屏幕和离开屏幕的方式。这些滚动标志包括：<br>•    scroll：所有想要滑出屏幕的视图都应该设置这个标志，对于那些未设置的视图，会固定在屏幕顶端。<br>•    enterAlways：这个标志确保了向下滚动的时候视图可见，使quick return模式可用。<br>•    enterAlwaysCollapsed：当一个视图被设置了minHeight并且使用了这个标志之后，那么这个视图只会按照最小的高度进入屏幕，当可滚动的视图到达顶部的时候，它会展开完整的高度。<br>•    exitUntilCollapsed：设置了这个标志之后，视图在离开屏幕之前会先滚动到折叠状态（最小高度）。</p>
 <p><code>注意：所有使用scroll这个标志的视图都应该在不使用这个标志的视图之前声明，保证所有的视图从顶部离开屏幕，将固定不动的视图留在下面。</code></p>
 <h1 id="Collapsing-Toolbar："><a href="#Collapsing-Toolbar：" class="headerlink" title="Collapsing Toolbar："></a>Collapsing Toolbar：</h1><p>如果直接在AppTabLayout中添加Toolbar可以通过设置enterAlwaysCollapsed和exitUntilCollapsed滚动标志来控制折叠效果，但是这并没有对不同元素交互时的细节控制能力。因此开发者可以使用CollapsingToolbarLayout：</p>
-<pre><code>&lt;android.support.design.widget.AppBarLayout
-        android:layout_height=&quot;192dp&quot;
-        android:layout_width=&quot;match_parent&quot;&gt;
-    &lt;android.support.design.widget.CollapsingToolbarLayout
-            android:layout_width=&quot;match_parent&quot;
-            android:layout_height=&quot;match_parent&quot;
-            app:layout_scrollFlags=&quot;scroll|exitUntilCollapsed&quot;&gt;
-        &lt;android.support.v7.widget.Toolbar
-                android:layout_height=&quot;?attr/actionBarSize&quot;
-                android:layout_width=&quot;match_parent&quot;
-                app:layout_collapseMode=&quot;pin&quot;/&gt;
-        &lt;/android.support.design.widget.CollapsingToolbarLayout&gt;
-&lt;/android.support.design.widget.AppBarLayout&gt;
-</code></pre><p>通过对CollapsingToolbarLayout设置app:layout_collapseMode=”pin”可以保证当视图被折叠的时候Toolbar固定在屏幕顶端。更棒的是，当CollspsingToolBarLayout和Toolbar一起使用的时候，当布局完全可见的时候标题会变大，并且在布局折叠的时候转变到默认大小。需要注意的是，应该为CollapsingToolbarLayout调用setTitle()方法设置标题，而不是对Toolbar设置。<br>除了固定视图以外，还可以使用app:layoutCollapseMode=”parallax”（还可以通过app:layout_collapseParallaxMultiplier=”0.7”来设置视差率），来实现视差滚动（比如说在CollapsingToolbarLayout中添加ImageView作为兄弟视图）。这种情景配合CollapsingToolbarLayout 的app:contentScrim=”?attr/colorPrimary” 属性会在视图折叠的时候产生非常棒的效果。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">android.support.design.widget.AppBarLayout</span></span></div><div class="line">        <span class="attr">android:layout_height</span>=<span class="string">"192dp"</span></div><div class="line">        <span class="attr">android:layout_width</span>=<span class="string">"match_parent"</span>&gt;</div><div class="line">    <span class="tag">&lt;<span class="name">android.support.design.widget.CollapsingToolbarLayout</span></span></div><div class="line">            <span class="attr">android:layout_width</span>=<span class="string">"match_parent"</span></div><div class="line">            <span class="attr">android:layout_height</span>=<span class="string">"match_parent"</span></div><div class="line">            <span class="attr">app:layout_scrollFlags</span>=<span class="string">"scroll|exitUntilCollapsed"</span>&gt;</div><div class="line">        <span class="tag">&lt;<span class="name">android.support.v7.widget.Toolbar</span></span></div><div class="line">                <span class="attr">android:layout_height</span>=<span class="string">"?attr/actionBarSize"</span></div><div class="line">                <span class="attr">android:layout_width</span>=<span class="string">"match_parent"</span></div><div class="line">                <span class="attr">app:layout_collapseMode</span>=<span class="string">"pin"</span>/&gt;</div><div class="line">        <span class="tag">&lt;/<span class="name">android.support.design.widget.CollapsingToolbarLayout</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">android.support.design.widget.AppBarLayout</span>&gt;</span></div></pre></td></tr></table></figure>
+<p>通过对CollapsingToolbarLayout设置app:layout_collapseMode=”pin”可以保证当视图被折叠的时候Toolbar固定在屏幕顶端。更棒的是，当CollspsingToolBarLayout和Toolbar一起使用的时候，当布局完全可见的时候标题会变大，并且在布局折叠的时候转变到默认大小。需要注意的是，应该为CollapsingToolbarLayout调用setTitle()方法设置标题，而不是对Toolbar设置。<br>除了固定视图以外，还可以使用app:layoutCollapseMode=”parallax”（还可以通过app:layout_collapseParallaxMultiplier=”0.7”来设置视差率），来实现视差滚动（比如说在CollapsingToolbarLayout中添加ImageView作为兄弟视图）。这种情景配合CollapsingToolbarLayout 的app:contentScrim=”?attr/colorPrimary” 属性会在视图折叠的时候产生非常棒的效果。</p>
 <h1 id="CoordinatorLayout-和个性化视图"><a href="#CoordinatorLayout-和个性化视图" class="headerlink" title="CoordinatorLayout 和个性化视图"></a>CoordinatorLayout 和个性化视图</h1><p>需要注意的非常重要的一点就是CoordinatorLayout并不知道FloatingActionButton或者AppBarLayout的作用，它仅仅以Coordinator.Behavior的形式提供一个额外的API接口，来更好的控制子类View之间的触摸事件和手势，并且通过onDependentViewChanged()来声明依赖和接受回调。<br>视图可以通过在代码中设置CoordinatorLayout.DefaultBehavior(YourView.Behavior.class) 或者在布局文件中设置app:layout_behavior=”com.example.app.YourView$Behavior”属性来控制默认的表现样式。Android从框架级别保证了任意视图和CoordinatorLayout交互的可能性。</p>
 <h1 id="Available-Now："><a href="#Available-Now：" class="headerlink" title="Available Now："></a>Available Now：</h1><p>设计库现在就可以使用了，只要保证在SDK管理器中更新了Android 支持库即可。只要添加下面一行依赖：</p>
 <pre><code>compile &apos;com.android.support:design:22.2.0&apos;
@@ -1014,7 +313,7 @@ tabLayout.addTab(tabLayout.newTab().setText(&quot;Tab 1&quot;));
     <link href="http://lz55.github.io/2015/05/18/MVP-Pattern/"/>
     <id>http://lz55.github.io/2015/05/18/MVP-Pattern/</id>
     <published>2015-05-17T16:00:00.000Z</published>
-    <updated>2016-08-18T15:32:57.000Z</updated>
+    <updated>2016-08-19T10:35:48.000Z</updated>
     
     <content type="html"><![CDATA[<h1 id="MVC-MVP-and-MVM"><a href="#MVC-MVP-and-MVM" class="headerlink" title="MVC, MVP and MVM"></a>MVC, MVP and MVM</h1><p>一个典型的MVC模式如下图所示：<br><img src="/images/MVC.png" alt="MVC"></p>
 <p>MVC模式在实践中其实并不适合大规模Android应用的开发，因为Android从的设计上来说，activity/fragment更像是View层的组件和controller的结合，因为单纯的XML布局不能完成非常复杂的交互逻辑。工作项目由于一开始（2012年左右）的设计是MVC的，activity承担了view和controller的角色，工作中一个Activity耦合了展现层的逻辑和controller的逻辑后达到了4K+的行数，一个非常恐怖的数字。所以必须要对之进行解耦重构，其中MVP和MVVM引起了我们的注意，MVP模式见下图：</p>
@@ -1025,93 +324,17 @@ tabLayout.addTab(tabLayout.newTab().setText(&quot;Tab 1&quot;));
 <p>MVVM和MVP模式的区别在于View对于ViewModel来说是透明的，ViewModel对于Model来说是透明的，ViewModel持有View的回调，Model持有ViewModel的回调，这样就实现View，ViewModel，Model的解耦。</p>
 <p>更多关于MVC, MVP, MVVM模式的讨论可以看一下<a href="http://blogs.k10world.com/technology/difference-between-mvc-vs-mvp-vs-mvvm/" target="_blank" rel="external">这篇文章</a>.</p>
 <h1 id="Demo"><a href="#Demo" class="headerlink" title="Demo"></a>Demo</h1><p>以一个点击button发送网络请求，并对结果进行处理的demo为例。<br><code>Activity</code>的代码如下：</p>
-<pre><code>public class MVVMDemoActivity extends ActionBarActivity
-    implements IViewModelCallback {
-
-    MVVMDemoViewModel viewModel;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_mvvmdemo);
-
-        viewModel = new MVVMDemoViewModel(this);
-        findViewById(R.id.sendrequest).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                viewModel.action();
-            }
-        });
-    }
-
-    @Override
-    public void onDataReceive() {
-        //数据回来后进行视图的更新
-    }
-
-    @Override
-    public void onError() {
-        //数据请求失败的时候做一些处理
-    }
-}
-</code></pre><p>可以看到Activity中只负责了View层的展示逻辑，毫无接收参数设置参数等不属于View的操作。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MVVMDemoActivity</span> <span class="keyword">extends</span> <span class="title">ActionBarActivity</span></span></div><div class="line">    <span class="keyword">implements</span> <span class="title">IViewModelCallback</span> &#123;</div><div class="line"></div><div class="line">    MVVMDemoViewModel viewModel;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onCreate</span><span class="params">(Bundle savedInstanceState)</span> </span>&#123;</div><div class="line">        <span class="keyword">super</span>.onCreate(savedInstanceState);</div><div class="line">        setContentView(R.layout.activity_mvvmdemo);</div><div class="line"></div><div class="line">        viewModel = <span class="keyword">new</span> MVVMDemoViewModel(<span class="keyword">this</span>);</div><div class="line">        findViewById(R.id.sendrequest).setOnClickListener(<span class="keyword">new</span> View.OnClickListener() &#123;</div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onClick</span><span class="params">(View v)</span> </span>&#123;</div><div class="line">                viewModel.action();</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onDataReceive</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="comment">//数据回来后进行视图的更新</span></div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onError</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="comment">//数据请求失败的时候做一些处理</span></div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>可以看到Activity中只负责了View层的展示逻辑，毫无接收参数设置参数等不属于View的操作。</p>
 <p><code>ViewModel</code>的代码如下：</p>
-<pre><code>public class MVVMDemoViewModel implements IRequestCallback {
-
-    IViewModelCallback viewListener;
-    DataRequestModel model;
-
-    public MVVMDemoViewModel(IViewModelCallback viewListener) {
-        this.viewListener = viewListener;
-        model = new DataRequestModel(this);
-    }
-
-    public void action() {
-        //这里可以做一些参数的初始化操作
-        //......
-        model.sendRequest();
-    }
-
-    @Override
-    public void onSuccess() {
-        viewListener.onDataReceive();
-    }
-
-    @Override
-    public void onError() {
-        viewListener.onError();
-    }
-}
-</code></pre><p>View层对于ViewModel来说是透明的，ViewModel只负责对实现了IViewModelCallback类型进行操作。ViewModel可以做一些参数的获取和设置等既不属于View层也不是Model层面的操作，可以实现视图展示层和业务代码的解耦。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MVVMDemoViewModel</span> <span class="keyword">implements</span> <span class="title">IRequestCallback</span> </span>&#123;</div><div class="line"></div><div class="line">    IViewModelCallback viewListener;</div><div class="line">    DataRequestModel model;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">MVVMDemoViewModel</span><span class="params">(IViewModelCallback viewListener)</span> </span>&#123;</div><div class="line">        <span class="keyword">this</span>.viewListener = viewListener;</div><div class="line">        model = <span class="keyword">new</span> DataRequestModel(<span class="keyword">this</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">action</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="comment">//这里可以做一些参数的初始化操作</span></div><div class="line">        <span class="comment">//......</span></div><div class="line">        model.sendRequest();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onSuccess</span><span class="params">()</span> </span>&#123;</div><div class="line">        viewListener.onDataReceive();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onError</span><span class="params">()</span> </span>&#123;</div><div class="line">        viewListener.onError();</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>View层对于ViewModel来说是透明的，ViewModel只负责对实现了IViewModelCallback类型进行操作。ViewModel可以做一些参数的获取和设置等既不属于View层也不是Model层面的操作，可以实现视图展示层和业务代码的解耦。</p>
 <p><code>Model</code>层的代码如下：</p>
-<pre><code>public class DataRequestModel {
-    private IRequestCallback IRequestCallback;
-
-    public DataRequestModel(IRequestCallback IRequestCallback) {
-        this.IRequestCallback = IRequestCallback;
-    }
-
-    public void sendRequest() {
-        //***模拟网络请求
-        //connecting...
-        //网络请求成功
-        IRequestCallback.onSuccess();
-        //网络请求失败
-        IRequestCallback.onError();
-    }
-}
-</code></pre><p>View和ViewModel对于Model来说都是透明的，Model只负责进行网络请求，这个业务是非常独立的，可以说放之四海而皆准。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">DataRequestModel</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> IRequestCallback IRequestCallback;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">DataRequestModel</span><span class="params">(IRequestCallback IRequestCallback)</span> </span>&#123;</div><div class="line">        <span class="keyword">this</span>.IRequestCallback = IRequestCallback;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">sendRequest</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="comment">//***模拟网络请求</span></div><div class="line">        <span class="comment">//connecting...</span></div><div class="line">        <span class="comment">//网络请求成功</span></div><div class="line">        IRequestCallback.onSuccess();</div><div class="line">        <span class="comment">//网络请求失败</span></div><div class="line">        IRequestCallback.onError();</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>View和ViewModel对于Model来说都是透明的，Model只负责进行网络请求，这个业务是非常独立的，可以说放之四海而皆准。</p>
 <p>两个接口的代码如下：</p>
-<pre><code>public interface IViewModelCallback {
-    void onDataReceive();
-    void onError();
-}
-
-public interface IRequestCallback {
-    void onSuccess();
-    void onError();
-}
-</code></pre><h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可见，MVVM在比较大规模的Android应用的开发中可以做到一个很好的解耦，工作实践中也证实了这一点。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">IViewModelCallback</span> </span>&#123;</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">onDataReceive</span><span class="params">()</span></span>;</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">onError</span><span class="params">()</span></span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">IRequestCallback</span> </span>&#123;</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">onSuccess</span><span class="params">()</span></span>;</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">onError</span><span class="params">()</span></span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可见，MVVM在比较大规模的Android应用的开发中可以做到一个很好的解耦，工作实践中也证实了这一点。</p>
 ]]></content>
     
     <summary type="html">
@@ -1134,31 +357,11 @@ public interface IRequestCallback {
     <link href="http://lz55.github.io/2015/05/11/singleton-memory-leak/"/>
     <id>http://lz55.github.io/2015/05/11/singleton-memory-leak/</id>
     <published>2015-05-10T16:00:00.000Z</published>
-    <updated>2016-05-22T05:19:25.000Z</updated>
+    <updated>2016-08-19T11:26:07.000Z</updated>
     
     <content type="html"><![CDATA[<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><p>项目开发中由于需要一个Util的单例化的存在，使用了单例模式，代码如下：</p>
-<pre><code>public class SingletonDemo {
-
-    private static volatile SingletonDemo instance;
-
-    private Context mContext;
-
-    private SingletonDemo(Context context) {
-        this.mContext = context;
-    }
-
-    public static SingletonDemo getInstance(Context context) {
-        if (instance == null) {
-            synchronized (SingletonDemo.class) {
-                if (instance == null) {
-                    instance = new SingletonDemo(context);
-                }
-            }
-        }
-        return instance;
-    }
-}
-</code></pre><p>关于如何正确的创建单例模式可以参考<a href="http://wuchong.me/blog/2014/08/28/how-to-correctly-write-singleton-pattern/" target="_blank" rel="external">这篇文章</a>，在这个地方我们仅仅讨论传进context有没有问题？</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SingletonDemo</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">volatile</span> SingletonDemo instance;</div><div class="line"></div><div class="line">    <span class="keyword">private</span> Context mContext;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">private</span> <span class="title">SingletonDemo</span><span class="params">(Context context)</span> </span>&#123;</div><div class="line">        <span class="keyword">this</span>.mContext = context;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> SingletonDemo <span class="title">getInstance</span><span class="params">(Context context)</span> </span>&#123;</div><div class="line">        <span class="keyword">if</span> (instance == <span class="keyword">null</span>) &#123;</div><div class="line">            <span class="keyword">synchronized</span> (SingletonDemo.class) &#123;</div><div class="line">                <span class="keyword">if</span> (instance == <span class="keyword">null</span>) &#123;</div><div class="line">                    instance = <span class="keyword">new</span> SingletonDemo(context);</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> instance;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>关于如何正确的创建单例模式可以参考<a href="http://wuchong.me/blog/2014/08/28/how-to-correctly-write-singleton-pattern/" target="_blank" rel="external">这篇文章</a>，在这个地方我们仅仅讨论传进context有没有问题？</p>
 <h2 id="详解"><a href="#详解" class="headerlink" title="详解"></a>详解</h2><p>答案当然是有问题的，由于这个地方的context是个强引用，而且是被静态变量持有。在java中静态变量实在类被load的时候分配内存，在类被卸载的时候销毁。可以说static变量的生命周期伴随着进程的诞生和销毁。在Android系统中，当我们启动一个app的时候，系统启动一个进程加载一个Dalvik虚拟机实例，来负责类的加载和卸载以及GC，也就是说静态变量伴随了app进程的整个生命周期，由于上例中的instance持有了context，所以被传进来的activity（或者service或broadcast）自然没有办法得到释放，也就造成了内存泄露。</p>
 <h2 id="解决办法"><a href="#解决办法" class="headerlink" title="解决办法"></a>解决办法</h2><p>其实这种需要单例的地方要仔细考虑好是否真的需要单例，因为在Android中静态变量其实是很不靠谱的，静态变量依附于进程，而Android在资源充足的时候是不会杀进程的，也就是说资源不足的情况下，进程随时可能被杀掉然后再具有资源的时候重启，那样存在静态变量里的值就很不靠谱了。如果说非得这么做不可，OK，使用context.getApplicationContext()，可以看一下Android developer上的解释：</p>
 <blockquote>

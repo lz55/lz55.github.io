@@ -1,312 +1,24 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> Android touch事件处理流程 · OutOfMemory</title><meta name="description" content="Android touch事件处理流程 - lz55"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/apollo.css"><link rel="search" type="application/opensearchdescription+xml" href="http://lz55.github.io/atom.xml" title="OutOfMemory"></head><body><div class="wrap"><header><a href="/" class="logo-link"><img src="/favicon.png"></a><ul class="nav nav-list"><li class="nav-list-item"><a href="/" target="_self" class="nav-list-link">BLOG</a></li><li class="nav-list-item"><a href="/archives/" target="_self" class="nav-list-link">ARCHIVE</a></li><li class="nav-list-item"><a href="http://weibo.com/2322512651/profile?topnav=1&amp;wvr=6&amp;is_all=1" target="_blank" class="nav-list-link">WEIBO</a></li><li class="nav-list-item"><a href="https://github.com/helloyingying" target="_blank" class="nav-list-link">GITHUB</a></li><li class="nav-list-item"><a href="/atom.xml" target="_self" class="nav-list-link">RSS</a></li></ul></header><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">Android touch事件处理流程</h1><div class="post-info">Aug 16, 2015</div><div class="post-content"><h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>工作中遇到一个业务场景：对WebView做一个封装，能根据webview某个点的透明度决定事件是被消费掉还是透传下去。有两个思路，一个是继承，一个是引用，能继承当然是最好的，但是有的时候也许根本没办法继承webview，比如为了资源回收等问题系统使用同一个webview组件，但不巧的是，为了模块解耦，在别的模块根本拿不到webview的类，只能通过bridge拿到一个引用，这个就必须通过引用来实现了。无论哪种方法都涉及到了touch事件的处理流程，简单梳理下。</p>
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> Android touch事件处理流程 · OutOfMemory</title><meta name="description" content="Android touch事件处理流程 - lz55"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/apollo.css"><link rel="search" type="application/opensearchdescription+xml" href="http://lz55.github.io/atom.xml" title="OutOfMemory"></head><body><div class="wrap"><header><a href="/" class="logo-link"><img src="/favicon.png"></a><ul class="nav nav-list"><li class="nav-list-item"><a href="/" target="_self" class="nav-list-link">BLOG</a></li><li class="nav-list-item"><a href="/archives/" target="_self" class="nav-list-link">ARCHIVE</a></li><li class="nav-list-item"><a href="https://github.com/helloyingying" target="_blank" class="nav-list-link">GITHUB</a></li><li class="nav-list-item"><a href="/atom.xml" target="_self" class="nav-list-link">RSS</a></li></ul></header><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">Android touch事件处理流程</h1><div class="post-info">Aug 16, 2015</div><div class="post-content"><h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>工作中遇到一个业务场景：对WebView做一个封装，能根据webview某个点的透明度决定事件是被消费掉还是透传下去。有两个思路，一个是继承，一个是引用，能继承当然是最好的，但是有的时候也许根本没办法继承webview，比如为了资源回收等问题系统使用同一个webview组件，但不巧的是，为了模块解耦，在别的模块根本拿不到webview的类，只能通过bridge拿到一个引用，这个就必须通过引用来实现了。无论哪种方法都涉及到了touch事件的处理流程，简单梳理下。</p>
 <h1 id="View对touch事件的处理流程"><a href="#View对touch事件的处理流程" class="headerlink" title="View对touch事件的处理流程"></a>View对touch事件的处理流程</h1><p>对Touch事件的处理涉及四个重要的方法：</p>
 <p>dispatchTouchEvent(MotionEvent event)<br>setOnTouchListener(OnTouchListener l)<br>onTouchEvent(MotionEvent event)</p>
 <p>先了解一下<code>dispatchTouchEvent(MotionEvent event)</code>:</p>
-<pre><code>/**
- * Pass the touch screen motion event down to the target view, or this
- * view if it is the target.
- *
- * @param event The motion event to be dispatched.
- * @return True if the event was handled by the view, false otherwise.
- */
-public boolean dispatchTouchEvent(MotionEvent event) {
-    // If the event should be handled by accessibility focus first.
-    if (event.isTargetAccessibilityFocus()) {
-        // We don&apos;t have focus or no virtual descendant has it, do not handle the event.
-        if (!isAccessibilityFocusedViewOrHost()) {
-            return false;
-        }
-        // We have focus and got the event, then use normal event dispatch.
-        event.setTargetAccessibilityFocus(false);
-    }
-
-    boolean result = false;
-
-    if (mInputEventConsistencyVerifier != null) {
-        mInputEventConsistencyVerifier.onTouchEvent(event, 0);
-    }
-
-    final int actionMasked = event.getActionMasked();
-    if (actionMasked == MotionEvent.ACTION_DOWN) {
-        // Defensive cleanup for new gesture
-        stopNestedScroll();
-    }
-
-    if (onFilterTouchEventForSecurity(event)) {
-        //noinspection SimplifiableIfStatement
-        ListenerInfo li = mListenerInfo;
-        if (li != null &amp;&amp; li.mOnTouchListener != null
-                &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED
-                &amp;&amp; li.mOnTouchListener.onTouch(this, event)) {
-            result = true;
-        }
-        if (!result &amp;&amp; onTouchEvent(event)) {
-            result = true;
-        }
-    }
-
-    if (!result &amp;&amp; mInputEventConsistencyVerifier != null) {
-        mInputEventConsistencyVerifier.onUnhandledEvent(event, 0);
-    }
-
-    // Clean up after nested scrolls if this is the end of a gesture;
-    // also cancel it if we tried an ACTION_DOWN but we didn&apos;t want the rest
-    // of the gesture.
-    if (actionMasked == MotionEvent.ACTION_UP ||
-            actionMasked == MotionEvent.ACTION_CANCEL ||
-            (actionMasked == MotionEvent.ACTION_DOWN &amp;&amp; !result)) {
-        stopNestedScroll();
-    }
-
-    return result;
-}
-</code></pre><p>   代码略长，但是和重点部分是下面的这几句：</p>
-<pre><code>if (onFilterTouchEventForSecurity(event)) {
-       //noinspection SimplifiableIfStatement
-       ListenerInfo li = mListenerInfo;
-       if (li != null &amp;&amp; li.mOnTouchListener != null
-               &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED
-               &amp;&amp; li.mOnTouchListener.onTouch(this, event)) {
-           result = true;
-       }
-       if (!result &amp;&amp; onTouchEvent(event)) {
-           result = true;
-       }
- }
-</code></pre><p>这段代码先判断了通过<code>setOnTouchEvent(OnTouchListener l)</code> 设置的<code>onTouchListener</code>, 如果listener不为空，View 的点击状态是ENABLE，并且<code>onTouchListener.onTouch</code> 返回true，那么给Result置为true。代码接着判断Result为false，才会执行View 自身的<code>onTouchEvent</code> 方法，如果<code>onTouchEvent</code> 返回true则将Result置为true。如果经过这两步Result为true，代表当前事件已经被消费掉了，触发下一次事件。否则是不会触发下一次事件的，典型的表现就是action_down被触发而action_move, action_up不会得到响应。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/**</span></div><div class="line"> * Pass the touch screen motion event down to the target view, or this</div><div class="line"> * view if it is the target.</div><div class="line"> *</div><div class="line"> * <span class="doctag">@param</span> event The motion event to be dispatched.</div><div class="line"> * <span class="doctag">@return</span> True if the event was handled by the view, false otherwise.</div><div class="line"> */</div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">dispatchTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">    <span class="comment">// If the event should be handled by accessibility focus first.</span></div><div class="line">    <span class="keyword">if</span> (event.isTargetAccessibilityFocus()) &#123;</div><div class="line">        <span class="comment">// We don't have focus or no virtual descendant has it, do not handle the event.</span></div><div class="line">        <span class="keyword">if</span> (!isAccessibilityFocusedViewOrHost()) &#123;</div><div class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">        <span class="comment">// We have focus and got the event, then use normal event dispatch.</span></div><div class="line">        event.setTargetAccessibilityFocus(<span class="keyword">false</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">boolean</span> result = <span class="keyword">false</span>;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (mInputEventConsistencyVerifier != <span class="keyword">null</span>) &#123;</div><div class="line">        mInputEventConsistencyVerifier.onTouchEvent(event, <span class="number">0</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">final</span> <span class="keyword">int</span> actionMasked = event.getActionMasked();</div><div class="line">    <span class="keyword">if</span> (actionMasked == MotionEvent.ACTION_DOWN) &#123;</div><div class="line">        <span class="comment">// Defensive cleanup for new gesture</span></div><div class="line">        stopNestedScroll();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (onFilterTouchEventForSecurity(event)) &#123;</div><div class="line">        <span class="comment">//noinspection SimplifiableIfStatement</span></div><div class="line">        ListenerInfo li = mListenerInfo;</div><div class="line">        <span class="keyword">if</span> (li != <span class="keyword">null</span> &amp;&amp; li.mOnTouchListener != <span class="keyword">null</span></div><div class="line">                &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED</div><div class="line">                &amp;&amp; li.mOnTouchListener.onTouch(<span class="keyword">this</span>, event)) &#123;</div><div class="line">            result = <span class="keyword">true</span>;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">if</span> (!result &amp;&amp; onTouchEvent(event)) &#123;</div><div class="line">            result = <span class="keyword">true</span>;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (!result &amp;&amp; mInputEventConsistencyVerifier != <span class="keyword">null</span>) &#123;</div><div class="line">        mInputEventConsistencyVerifier.onUnhandledEvent(event, <span class="number">0</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// Clean up after nested scrolls if this is the end of a gesture;</span></div><div class="line">    <span class="comment">// also cancel it if we tried an ACTION_DOWN but we didn't want the rest</span></div><div class="line">    <span class="comment">// of the gesture.</span></div><div class="line">    <span class="keyword">if</span> (actionMasked == MotionEvent.ACTION_UP ||</div><div class="line">            actionMasked == MotionEvent.ACTION_CANCEL ||</div><div class="line">            (actionMasked == MotionEvent.ACTION_DOWN &amp;&amp; !result)) &#123;</div><div class="line">        stopNestedScroll();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">return</span> result;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>   代码略长，但是和重点部分是下面的这几句：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">if</span> (onFilterTouchEventForSecurity(event)) &#123;</div><div class="line">       <span class="comment">//noinspection SimplifiableIfStatement</span></div><div class="line">       ListenerInfo li = mListenerInfo;</div><div class="line">       <span class="keyword">if</span> (li != <span class="keyword">null</span> &amp;&amp; li.mOnTouchListener != <span class="keyword">null</span></div><div class="line">               &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED</div><div class="line">               &amp;&amp; li.mOnTouchListener.onTouch(<span class="keyword">this</span>, event)) &#123;</div><div class="line">           result = <span class="keyword">true</span>;</div><div class="line">       &#125;</div><div class="line">       <span class="keyword">if</span> (!result &amp;&amp; onTouchEvent(event)) &#123;</div><div class="line">           result = <span class="keyword">true</span>;</div><div class="line">       &#125;</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
+<p>这段代码先判断了通过<code>setOnTouchEvent(OnTouchListener l)</code> 设置的<code>onTouchListener</code>, 如果listener不为空，View 的点击状态是ENABLE，并且<code>onTouchListener.onTouch</code> 返回true，那么给Result置为true。代码接着判断Result为false，才会执行View 自身的<code>onTouchEvent</code> 方法，如果<code>onTouchEvent</code> 返回true则将Result置为true。如果经过这两步Result为true，代表当前事件已经被消费掉了，触发下一次事件。否则是不会触发下一次事件的，典型的表现就是action_down被触发而action_move, action_up不会得到响应。</p>
 <p>也就是说：touch事件会首先触发dispatchTouchEvent方法，并且如果外围设置了onTouchListener会先执行onTouchListener的onTouch方法，只有当onTouch返回false才会执行自身的onTouchEvent方法。</p>
-<p>看一下 <code>onTouchEvent(MotionEvent event)</code>:</p>
-<pre><code>/**
- * Implement this method to handle touch screen motion events.
- * &lt;p&gt;
- * If this method is used to detect click actions, it is recommended that
- * the actions be performed by implementing and calling
- * {@link #performClick()}. This will ensure consistent system behavior,
- * including:
- * &lt;ul&gt;
- * &lt;li&gt;obeying click sound preferences
- * &lt;li&gt;dispatching OnClickListener calls
- * &lt;li&gt;handling {@link AccessibilityNodeInfo#ACTION_CLICK ACTION_CLICK} when
- * accessibility features are enabled
- * &lt;/ul&gt;
- *
- * @param event The motion event.
- * @return True if the event was handled, false otherwise.
- */
-public boolean onTouchEvent(MotionEvent event) {
-    final float x = event.getX();
-    final float y = event.getY();
-    final int viewFlags = mViewFlags;
-
-    if ((viewFlags &amp; ENABLED_MASK) == DISABLED) {
-        if (event.getAction() == MotionEvent.ACTION_UP &amp;&amp; (mPrivateFlags &amp; PFLAG_PRESSED) != 0) {
-            setPressed(false);
-        }
-        // A disabled view that is clickable still consumes the touch
-        // events, it just doesn&apos;t respond to them.
-        return (((viewFlags &amp; CLICKABLE) == CLICKABLE ||
-                (viewFlags &amp; LONG_CLICKABLE) == LONG_CLICKABLE));
-    }
-
-    if (mTouchDelegate != null) {
-        if (mTouchDelegate.onTouchEvent(event)) {
-            return true;
-        }
-    }
-
-    if (((viewFlags &amp; CLICKABLE) == CLICKABLE ||
-            (viewFlags &amp; LONG_CLICKABLE) == LONG_CLICKABLE)) {
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_UP:
-                boolean prepressed = (mPrivateFlags &amp; PFLAG_PREPRESSED) != 0;
-                if ((mPrivateFlags &amp; PFLAG_PRESSED) != 0 || prepressed) {
-                    // take focus if we don&apos;t have it already and we should in
-                    // touch mode.
-                    boolean focusTaken = false;
-                    if (isFocusable() &amp;&amp; isFocusableInTouchMode() &amp;&amp; !isFocused()) {
-                        focusTaken = requestFocus();
-                    }
-
-                    if (prepressed) {
-                        // The button is being released before we actually
-                        // showed it as pressed.  Make it show the pressed
-                        // state now (before scheduling the click) to ensure
-                        // the user sees it.
-                        setPressed(true, x, y);
-                   }
-
-                    if (!mHasPerformedLongPress) {
-                        // This is a tap, so remove the longpress check
-                        removeLongPressCallback();
-
-                        // Only perform take click actions if we were in the pressed state
-                        if (!focusTaken) {
-                            // Use a Runnable and post this rather than calling
-                            // performClick directly. This lets other visual state
-                            // of the view update before click actions start.
-                            if (mPerformClick == null) {
-                                mPerformClick = new PerformClick();
-                            }
-                            if (!post(mPerformClick)) {
-                                performClick();
-                            }
-                        }
-                    }
-
-                    if (mUnsetPressedState == null) {
-                        mUnsetPressedState = new UnsetPressedState();
-                    }
-
-                    if (prepressed) {
-                        postDelayed(mUnsetPressedState,
-                                ViewConfiguration.getPressedStateDuration());
-                    } else if (!post(mUnsetPressedState)) {
-                        // If the post failed, unpress right now
-                        mUnsetPressedState.run();
-                    }
-
-                    removeTapCallback();
-                }
-                break;
-
-            case MotionEvent.ACTION_DOWN:
-                mHasPerformedLongPress = false;
-
-                if (performButtonActionOnTouchDown(event)) {
-                    break;
-                }
-
-                // Walk up the hierarchy to determine if we&apos;re inside a scrolling container.
-                boolean isInScrollingContainer = isInScrollingContainer();
-
-                // For views inside a scrolling container, delay the pressed feedback for
-                // a short period in case this is a scroll.
-                if (isInScrollingContainer) {
-                    mPrivateFlags |= PFLAG_PREPRESSED;
-                    if (mPendingCheckForTap == null) {
-                        mPendingCheckForTap = new CheckForTap();
-                    }
-                    mPendingCheckForTap.x = event.getX();
-                    mPendingCheckForTap.y = event.getY();
-                    postDelayed(mPendingCheckForTap, ViewConfiguration.getTapTimeout());
-                } else {
-                    // Not inside a scrolling container, so show the feedback right away
-                    setPressed(true, x, y);
-                    checkForLongClick(0);
-                }
-                break;
-
-            case MotionEvent.ACTION_CANCEL:
-                setPressed(false);
-                removeTapCallback();
-                removeLongPressCallback();
-                break;
-
-            case MotionEvent.ACTION_MOVE:
-                drawableHotspotChanged(x, y);
-
-                // Be lenient about moving outside of buttons
-                if (!pointInView(x, y, mTouchSlop)) {
-                    // Outside button
-                    removeTapCallback();
-                    if ((mPrivateFlags &amp; PFLAG_PRESSED) != 0) {
-                        // Remove any future long press/tap checks
-                        removeLongPressCallback();
-
-                        setPressed(false);
-                    }
-                }
-                break;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-</code></pre><p>代码的逻辑还是非常清晰的，在该方法中主要是做了Event的action产生click，longPress等事件。</p>
-<h1 id="ViewGroup对touch事件的处理"><a href="#ViewGroup对touch事件的处理" class="headerlink" title="ViewGroup对touch事件的处理"></a>ViewGroup对touch事件的处理</h1><p>ViewGroup和Touch事件相关的方法比起View多了一个onInterceptTouchEvent(MotionEvent ev)，而这个方法代码非常简单：</p>
-<pre><code>public boolean onInterceptTouchEvent(MotionEvent ev) {
-    return false;
-}
-</code></pre><p>但是它的注释却长的吓人：</p>
+<p>看一下 <code>onTouchEvent(MotionEvent event)</code>:<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/**</span></div><div class="line"> * Implement this method to handle touch screen motion events.</div><div class="line"> * &lt;p&gt;</div><div class="line"> * If this method is used to detect click actions, it is recommended that</div><div class="line"> * the actions be performed by implementing and calling</div><div class="line"> * &#123;<span class="doctag">@link</span> #performClick()&#125;. This will ensure consistent system behavior,</div><div class="line"> * including:</div><div class="line"> * &lt;ul&gt;</div><div class="line"> * &lt;li&gt;obeying click sound preferences</div><div class="line"> * &lt;li&gt;dispatching OnClickListener calls</div><div class="line"> * &lt;li&gt;handling &#123;<span class="doctag">@link</span> AccessibilityNodeInfo#ACTION_CLICK ACTION_CLICK&#125; when</div><div class="line"> * accessibility features are enabled</div><div class="line"> * &lt;/ul&gt;</div><div class="line"> *</div><div class="line"> * <span class="doctag">@param</span> event The motion event.</div><div class="line"> * <span class="doctag">@return</span> True if the event was handled, false otherwise.</div><div class="line"> */</div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">    <span class="keyword">final</span> <span class="keyword">float</span> x = event.getX();</div><div class="line">    <span class="keyword">final</span> <span class="keyword">float</span> y = event.getY();</div><div class="line">    <span class="keyword">final</span> <span class="keyword">int</span> viewFlags = mViewFlags;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> ((viewFlags &amp; ENABLED_MASK) == DISABLED) &#123;</div><div class="line">        <span class="keyword">if</span> (event.getAction() == MotionEvent.ACTION_UP &amp;&amp; (mPrivateFlags &amp; PFLAG_PRESSED) != <span class="number">0</span>) &#123;</div><div class="line">            setPressed(<span class="keyword">false</span>);</div><div class="line">        &#125;</div><div class="line">        <span class="comment">// A disabled view that is clickable still consumes the touch</span></div><div class="line">        <span class="comment">// events, it just doesn't respond to them.</span></div><div class="line">        <span class="keyword">return</span> (((viewFlags &amp; CLICKABLE) == CLICKABLE ||</div><div class="line">                (viewFlags &amp; LONG_CLICKABLE) == LONG_CLICKABLE));</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (mTouchDelegate != <span class="keyword">null</span>) &#123;</div><div class="line">        <span class="keyword">if</span> (mTouchDelegate.onTouchEvent(event)) &#123;</div><div class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (((viewFlags &amp; CLICKABLE) == CLICKABLE ||</div><div class="line">            (viewFlags &amp; LONG_CLICKABLE) == LONG_CLICKABLE)) &#123;</div><div class="line">        <span class="keyword">switch</span> (event.getAction()) &#123;</div><div class="line">            <span class="keyword">case</span> MotionEvent.ACTION_UP:</div><div class="line">                <span class="keyword">boolean</span> prepressed = (mPrivateFlags &amp; PFLAG_PREPRESSED) != <span class="number">0</span>;</div><div class="line">                <span class="keyword">if</span> ((mPrivateFlags &amp; PFLAG_PRESSED) != <span class="number">0</span> || prepressed) &#123;</div><div class="line">                    <span class="comment">// take focus if we don't have it already and we should in</span></div><div class="line">                    <span class="comment">// touch mode.</span></div><div class="line">                    <span class="keyword">boolean</span> focusTaken = <span class="keyword">false</span>;</div><div class="line">                    <span class="keyword">if</span> (isFocusable() &amp;&amp; isFocusableInTouchMode() &amp;&amp; !isFocused()) &#123;</div><div class="line">                        focusTaken = requestFocus();</div><div class="line">                    &#125;</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> (prepressed) &#123;</div><div class="line">                        <span class="comment">// The button is being released before we actually</span></div><div class="line">                        <span class="comment">// showed it as pressed.  Make it show the pressed</span></div><div class="line">                        <span class="comment">// state now (before scheduling the click) to ensure</span></div><div class="line">                        <span class="comment">// the user sees it.</span></div><div class="line">                        setPressed(<span class="keyword">true</span>, x, y);</div><div class="line">                   &#125;</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> (!mHasPerformedLongPress) &#123;</div><div class="line">                        <span class="comment">// This is a tap, so remove the longpress check</span></div><div class="line">                        removeLongPressCallback();</div><div class="line"></div><div class="line">                        <span class="comment">// Only perform take click actions if we were in the pressed state</span></div><div class="line">                        <span class="keyword">if</span> (!focusTaken) &#123;</div><div class="line">                            <span class="comment">// Use a Runnable and post this rather than calling</span></div><div class="line">                            <span class="comment">// performClick directly. This lets other visual state</span></div><div class="line">                            <span class="comment">// of the view update before click actions start.</span></div><div class="line">                            <span class="keyword">if</span> (mPerformClick == <span class="keyword">null</span>) &#123;</div><div class="line">                                mPerformClick = <span class="keyword">new</span> PerformClick();</div><div class="line">                            &#125;</div><div class="line">                            <span class="keyword">if</span> (!post(mPerformClick)) &#123;</div><div class="line">                                performClick();</div><div class="line">                            &#125;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> (mUnsetPressedState == <span class="keyword">null</span>) &#123;</div><div class="line">                        mUnsetPressedState = <span class="keyword">new</span> UnsetPressedState();</div><div class="line">                    &#125;</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> (prepressed) &#123;</div><div class="line">                        postDelayed(mUnsetPressedState,</div><div class="line">                                ViewConfiguration.getPressedStateDuration());</div><div class="line">                    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!post(mUnsetPressedState)) &#123;</div><div class="line">                        <span class="comment">// If the post failed, unpress right now</span></div><div class="line">                        mUnsetPressedState.run();</div><div class="line">                    &#125;</div><div class="line"></div><div class="line">                    removeTapCallback();</div><div class="line">                &#125;</div><div class="line">                <span class="keyword">break</span>;</div><div class="line"></div><div class="line">            <span class="keyword">case</span> MotionEvent.ACTION_DOWN:</div><div class="line">                mHasPerformedLongPress = <span class="keyword">false</span>;</div><div class="line"></div><div class="line">                <span class="keyword">if</span> (performButtonActionOnTouchDown(event)) &#123;</div><div class="line">                    <span class="keyword">break</span>;</div><div class="line">                &#125;</div><div class="line"></div><div class="line">                <span class="comment">// Walk up the hierarchy to determine if we're inside a scrolling container.</span></div><div class="line">                <span class="keyword">boolean</span> isInScrollingContainer = isInScrollingContainer();</div><div class="line"></div><div class="line">                <span class="comment">// For views inside a scrolling container, delay the pressed feedback for</span></div><div class="line">                <span class="comment">// a short period in case this is a scroll.</span></div><div class="line">                <span class="keyword">if</span> (isInScrollingContainer) &#123;</div><div class="line">                    mPrivateFlags |= PFLAG_PREPRESSED;</div><div class="line">                    <span class="keyword">if</span> (mPendingCheckForTap == <span class="keyword">null</span>) &#123;</div><div class="line">                        mPendingCheckForTap = <span class="keyword">new</span> CheckForTap();</div><div class="line">                    &#125;</div><div class="line">                    mPendingCheckForTap.x = event.getX();</div><div class="line">                    mPendingCheckForTap.y = event.getY();</div><div class="line">                    postDelayed(mPendingCheckForTap, ViewConfiguration.getTapTimeout());</div><div class="line">                &#125; <span class="keyword">else</span> &#123;</div><div class="line">                    <span class="comment">// Not inside a scrolling container, so show the feedback right away</span></div><div class="line">                    setPressed(<span class="keyword">true</span>, x, y);</div><div class="line">                    checkForLongClick(<span class="number">0</span>);</div><div class="line">                &#125;</div><div class="line">                <span class="keyword">break</span>;</div><div class="line"></div><div class="line">            <span class="keyword">case</span> MotionEvent.ACTION_CANCEL:</div><div class="line">                setPressed(<span class="keyword">false</span>);</div><div class="line">                removeTapCallback();</div><div class="line">                removeLongPressCallback();</div><div class="line">                <span class="keyword">break</span>;</div><div class="line"></div><div class="line">            <span class="keyword">case</span> MotionEvent.ACTION_MOVE:</div><div class="line">                drawableHotspotChanged(x, y);</div><div class="line"></div><div class="line">                <span class="comment">// Be lenient about moving outside of buttons</span></div><div class="line">                <span class="keyword">if</span> (!pointInView(x, y, mTouchSlop)) &#123;</div><div class="line">                    <span class="comment">// Outside button</span></div><div class="line">                    removeTapCallback();</div><div class="line">                    <span class="keyword">if</span> ((mPrivateFlags &amp; PFLAG_PRESSED) != <span class="number">0</span>) &#123;</div><div class="line">                        <span class="comment">// Remove any future long press/tap checks</span></div><div class="line">                        removeLongPressCallback();</div><div class="line"></div><div class="line">                        setPressed(<span class="keyword">false</span>);</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">                <span class="keyword">break</span>;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>代码的逻辑还是非常清晰的，在该方法中主要是做了Event的action产生click，longPress等事件。</p>
+<h1 id="ViewGroup对touch事件的处理"><a href="#ViewGroup对touch事件的处理" class="headerlink" title="ViewGroup对touch事件的处理"></a>ViewGroup对touch事件的处理</h1><p>ViewGroup和Touch事件相关的方法比起View多了一个onInterceptTouchEvent(MotionEvent ev)，而这个方法代码非常简单：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onInterceptTouchEvent</span><span class="params">(MotionEvent ev)</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>但是它的注释却长的吓人：</p>
 <p><img src="/images/onInterceptTouchEvent.png" alt=""></p>
 <p>用一段测试程序来说明这些流程，假设有一个ViewGroup比如FrameLayout，里面包含了一个Button。</p>
 <p>Activity的代码：</p>
-<pre><code>findViewById(R.id.touch_btn).setOnTouchListener(new       View.OnTouchListener() {
-        @Override
-        public boolean onTouch(View v, MotionEvent event) {
-            Log.d(&quot;MyButton&quot;, &quot;OnTouchListener&quot;);
-            return false;
-        }
-    });
-
-    findViewById(R.id.touch_frame_layout).setOnTouchListener(new View.OnTouchListener() {
-        @Override
-        public boolean onTouch(View v, MotionEvent event) {
-            Log.d(&quot;MyFrameLayout&quot;, &quot;OnTouchListener&quot;);
-            return false;
-        }
-    });
-</code></pre><p>MyButton的代码：</p>
-<pre><code>public class MyButton extends Button {
-    public MyButton(Context context) {
-        super(context);
-    }
-
-    public MyButton(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
-
-    public MyButton(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        Log.d(&quot;MyButton&quot;, &quot;onTouchEvent&quot;);
-        return super.onTouchEvent(event);
-    }
-
-    @Override
-    public boolean dispatchTouchEvent(MotionEvent event) {
-        Log.d(&quot;MyButton&quot;, &quot;dispatchTouchEvent&quot;);
-        return super.dispatchTouchEvent(event);
-    }
-}
-</code></pre><p>MyFrameLayout的代码如下:</p>
-<pre><code>public class MyTouchFrameLayout extends FrameLayout {
-    public MyTouchFrameLayout(Context context) {
-        super(context);
-    }
-
-    public MyTouchFrameLayout(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
-
-    public MyTouchFrameLayout(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
-
-    @Override
-    public boolean onInterceptTouchEvent(MotionEvent ev) {
-        Log.d(&quot;MyFrameLayout&quot;, &quot;onInterceptTouchEvent&quot;);
-        return super.onInterceptTouchEvent(ev);
-    }
-
-    @Override
-    public boolean dispatchTouchEvent(MotionEvent ev) {
-        Log.d(&quot;MyFrameLayout&quot;, &quot;dispatchTouchEvent&quot;);
-        return super.dispatchTouchEvent(ev);
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        Log.d(&quot;MyFrameLayout&quot;, &quot;onTouchEvent&quot;);
-        return super.onTouchEvent(event);
-    }
-}
-</code></pre><p>点击button时事件的传递流程如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">findViewById(R.id.touch_btn).setOnTouchListener(<span class="keyword">new</span>       View.OnTouchListener() &#123;</div><div class="line">        <span class="meta">@Override</span></div><div class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouch</span><span class="params">(View v, MotionEvent event)</span> </span>&#123;</div><div class="line">            Log.d(<span class="string">"MyButton"</span>, <span class="string">"OnTouchListener"</span>);</div><div class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">    &#125;);</div><div class="line"></div><div class="line">    findViewById(R.id.touch_frame_layout).setOnTouchListener(<span class="keyword">new</span> View.OnTouchListener() &#123;</div><div class="line">        <span class="meta">@Override</span></div><div class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouch</span><span class="params">(View v, MotionEvent event)</span> </span>&#123;</div><div class="line">            Log.d(<span class="string">"MyFrameLayout"</span>, <span class="string">"OnTouchListener"</span>);</div><div class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">    &#125;);</div></pre></td></tr></table></figure>
+<p>MyButton的代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyButton</span> <span class="keyword">extends</span> <span class="title">Button</span> </span>&#123;</div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyButton</span><span class="params">(Context context)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context);</div><div class="line"> &#125;</div><div class="line"> </div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyButton</span><span class="params">(Context context, AttributeSet attrs)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context, attrs);</div><div class="line"> &#125;</div><div class="line"> </div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyButton</span><span class="params">(Context context, AttributeSet attrs, <span class="keyword">int</span> defStyleAttr)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context, attrs, defStyleAttr);</div><div class="line"> &#125;</div><div class="line"> </div><div class="line"> <span class="meta">@Override</span></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">     Log.d(<span class="string">"MyButton"</span>, <span class="string">"onTouchEvent"</span>);</div><div class="line">     <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line"> &#125;</div><div class="line"> </div><div class="line"> <span class="meta">@Override</span></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">dispatchTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">     Log.d(<span class="string">"MyButton"</span>, <span class="string">"dispatchTouchEvent"</span>);</div><div class="line">     <span class="keyword">return</span> <span class="keyword">super</span>.dispatchTouchEvent(event);</div><div class="line"> &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>MyFrameLayout的代码如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyTouchFrameLayout</span> <span class="keyword">extends</span> <span class="title">FrameLayout</span> </span>&#123;</div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyTouchFrameLayout</span><span class="params">(Context context)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context);</div><div class="line"> &#125;</div><div class="line">	</div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyTouchFrameLayout</span><span class="params">(Context context, AttributeSet attrs)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context, attrs);</div><div class="line"> &#125;</div><div class="line">	</div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="title">MyTouchFrameLayout</span><span class="params">(Context context, AttributeSet attrs, <span class="keyword">int</span> defStyleAttr)</span> </span>&#123;</div><div class="line">     <span class="keyword">super</span>(context, attrs, defStyleAttr);</div><div class="line"> &#125;</div><div class="line">	</div><div class="line"> <span class="meta">@Override</span></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onInterceptTouchEvent</span><span class="params">(MotionEvent ev)</span> </span>&#123;</div><div class="line">     Log.d(<span class="string">"MyFrameLayout"</span>, <span class="string">"onInterceptTouchEvent"</span>);</div><div class="line">     <span class="keyword">return</span> <span class="keyword">super</span>.onInterceptTouchEvent(ev);</div><div class="line"> &#125;</div><div class="line">	</div><div class="line"> <span class="meta">@Override</span></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">dispatchTouchEvent</span><span class="params">(MotionEvent ev)</span> </span>&#123;</div><div class="line">     Log.d(<span class="string">"MyFrameLayout"</span>, <span class="string">"dispatchTouchEvent"</span>);</div><div class="line">     <span class="keyword">return</span> <span class="keyword">super</span>.dispatchTouchEvent(ev);</div><div class="line"> &#125;</div><div class="line">	</div><div class="line"> <span class="meta">@Override</span></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">     Log.d(<span class="string">"MyFrameLayout"</span>, <span class="string">"onTouchEvent"</span>);</div><div class="line">     <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line"> &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>点击button时事件的传递流程如下：</p>
 <p><strong>action_down</strong></p>
 <ol>
 <li><code>MyFrameLayout﹕ dispatchTouchEvent</code></li>
@@ -335,59 +47,19 @@ public boolean onTouchEvent(MotionEvent event) {
 </ul>
 <h1 id="基于继承关系的PenetrateWebView（可穿透WebView）"><a href="#基于继承关系的PenetrateWebView（可穿透WebView）" class="headerlink" title="基于继承关系的PenetrateWebView（可穿透WebView）"></a>基于继承关系的PenetrateWebView（可穿透WebView）</h1><p>明白了touch事件在View中的传递流程，使用继承来实现PenetrateWebView也就非常简单了。</p>
 <p>首先有一个工具方法来获取某一点的alpha值：</p>
-<pre><code>private static int getAlphaOfViewPoint(View view, int x, int y) {
-    view.setDrawingCacheEnabled(true);
-    Bitmap bmp = view.getDrawingCache(true);
-    int pixel = bmp.getPixel(x, y);
-    int alpha = Color.alpha(pixel);
-    TMDebugLog.logv(&quot;pop_layer.point_alpha &quot;, alpha+&quot;&quot;);
-    view.destroyDrawingCache();
-    return alpha;
-}
-</code></pre><p>然后再自定义WebView中重写onTouchEvent方法：</p>
-<pre><code> public boolean onTouchEvent(MotionEvent event) {
-    try {
-        if (event.getY() &lt; 0 || event.getX() &lt; 0)
-            return super.onTouchEvent(event);
-
-        //如果某点的alpha值小于等于阈值，将事件透传下去
-        //反之将事件消费掉
-        if (getAlphaOfViewPoint(this, (int) event.getX(), (int) event.getY()) &lt;= mPenetrateAlpha) {
-            return false;
-        }
-        return super.onTouchEvent(event);
-    } catch (Throwable e) {
-        e.printStackTrace();
-        return super.onTouchEvent(event);
-    }
-}
-</code></pre><p>基于继承关系的PenetrateWebView实现起来还是非常容易的，下面讨论一下基于引用关系的PenetrateWebView。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">int</span> <span class="title">getAlphaOfViewPoint</span><span class="params">(View view, <span class="keyword">int</span> x, <span class="keyword">int</span> y)</span> </span>&#123;</div><div class="line">    view.setDrawingCacheEnabled(<span class="keyword">true</span>);</div><div class="line">    Bitmap bmp = view.getDrawingCache(<span class="keyword">true</span>);</div><div class="line">    <span class="keyword">int</span> pixel = bmp.getPixel(x, y);</div><div class="line">    <span class="keyword">int</span> alpha = Color.alpha(pixel);</div><div class="line">    TMDebugLog.logv(<span class="string">"pop_layer.point_alpha "</span>, alpha+<span class="string">""</span>);</div><div class="line">    view.destroyDrawingCache();</div><div class="line">    <span class="keyword">return</span> alpha;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>然后再自定义WebView中重写onTouchEvent方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">    <span class="keyword">try</span> &#123;</div><div class="line">        <span class="keyword">if</span> (event.getY() &lt; <span class="number">0</span> || event.getX() &lt; <span class="number">0</span>)</div><div class="line">            <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line">           </div><div class="line">        <span class="comment">//如果某点的alpha值小于等于阈值，将事件透传下去</span></div><div class="line">        <span class="comment">//反之将事件消费掉</span></div><div class="line">        <span class="keyword">if</span> (getAlphaOfViewPoint(<span class="keyword">this</span>, (<span class="keyword">int</span>) event.getX(), (<span class="keyword">int</span>) event.getY()) &lt;= mPenetrateAlpha) &#123;</div><div class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line">    &#125; <span class="keyword">catch</span> (Throwable e) &#123;</div><div class="line">        e.printStackTrace();</div><div class="line">        <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>基于继承关系的PenetrateWebView实现起来还是非常容易的，下面讨论一下基于引用关系的PenetrateWebView。</p>
 <h1 id="基于引用关系的PenetrateWebView"><a href="#基于引用关系的PenetrateWebView" class="headerlink" title="基于引用关系的PenetrateWebView"></a>基于引用关系的PenetrateWebView</h1><p>当没有办法继承的时候我首先想到的是设置OnTouchListener，但是onTouch返回true虽然将事件消费掉了，但是就不会执行onTouchEvent方法，也就无法产生click事件，整个WebView失去了交互的能力。返回false更加没有任何意义了，还是没办法控制onTouchEvent。<br>于是想到了在WebView的外部嵌套一层布局实现事件的拦截，一开始没搞清楚ViewGroup中事件的传递流程，在dispatchTouchEvent和onTouchEvent中写逻辑，发现还是没办法实现很好的控制，在阅读了touch相关的代码后，使用下面的方式实现了PenetrateWebView。</p>
-<pre><code>@Override
-public boolean onInterceptTouchEvent(MotionEvent event) {
-    try {
-        if (event.getY() &lt; 0 || event.getX() &lt; 0)
-            return super.onTouchEvent(event);
-        // 如果该点的alpha小于等于阈值，在该布局中拦截下事件，交给上层布局处理，onTouchEvent事件会被执行，onTouchEvent始终返回false，将事件透传下去
-        // 如果该点的alpha大于阈值，将事件交给子View处理，onTouchEvent事件并不会被执行，将事件拦截下来
-        return getAlphaOfViewPoint(this, (int) event.getX(), (int) event.getY()) &lt;= mPenetrateAlpha;
-    } catch (Throwable e) {
-        e.printStackTrace();
-        return false;
-    }
-}
-
-@Override
-public boolean onTouchEvent(MotionEvent event) {
-    return false;//当该方法被执行的时候，将事件交给父类布局去处理
-}
-</code></pre><h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onInterceptTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">    <span class="keyword">try</span> &#123;</div><div class="line">        <span class="keyword">if</span> (event.getY() &lt; <span class="number">0</span> || event.getX() &lt; <span class="number">0</span>)</div><div class="line">            <span class="keyword">return</span> <span class="keyword">super</span>.onTouchEvent(event);</div><div class="line">        <span class="comment">// 如果该点的alpha小于等于阈值，在该布局中拦截下事件，交给上层布局处理，onTouchEvent事件会被执行，onTouchEvent始终返回false，将事件透传下去</span></div><div class="line">        <span class="comment">// 如果该点的alpha大于阈值，将事件交给子View处理，onTouchEvent事件并不会被执行，将事件拦截下来</span></div><div class="line">        <span class="keyword">return</span> getAlphaOfViewPoint(<span class="keyword">this</span>, (<span class="keyword">int</span>) event.getX(), (<span class="keyword">int</span>) event.getY()) &lt;= mPenetrateAlpha;</div><div class="line">    &#125; <span class="keyword">catch</span> (Throwable e) &#123;</div><div class="line">        e.printStackTrace();</div><div class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">onTouchEvent</span><span class="params">(MotionEvent event)</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;<span class="comment">//当该方法被执行的时候，将事件交给父类布局去处理</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ol>
 <li>View设置OnTouchListener之后，如果onTouch返回true那么onTouchEvent方法不会被执行。</li>
 <li>click事件是在onTouchEvent方法中产生的。</li>
 <li>ViewGroup中Touch事件传递是从外到内的，子View倒序遍历。</li>
 <li>ViewGroup中onInterceptTouchEvent方法返回false的时候不会执行该ViewGroup的onTouchEvent方法，返回true则会执行。</li>
 </ol>
-</div></article></div></section><footer><div class="paginator"><a href="/2015/10/11/java-weak-references/" class="prev">PREV</a><a href="/2015/07/16/displaying-bitmaps-efficiently/" class="next">NEXT</a></div><div data-thread-key="2015/08/16/android-touch/" data-title="Android touch事件处理流程" data-url="http://lz55.github.io/2015/08/16/android-touch/" data-author-key="1" class="ds-thread"></div><script>var duoshuoQuery = {short_name:"lz55"};
+</div></article></div></section><footer><div class="paginator"><a href="/2015/10/11/java-weak-references/" class="prev">上一篇</a><a href="/2015/07/16/displaying-bitmaps-efficiently/" class="next">下一篇</a></div><div data-thread-key="2015/08/16/android-touch/" data-title="Android touch事件处理流程" data-url="http://lz55.github.io/2015/08/16/android-touch/" data-author-key="1" class="ds-thread"></div><script>var duoshuoQuery = {short_name:"lz55"};
 (function() {
     var ds = document.createElement('script');
     ds.type = 'text/javascript';ds.async = true;

@@ -5,7 +5,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://lz55.github.io/"/>
-  <updated>2016-05-22T13:27:03.000Z</updated>
+  <updated>2016-08-24T05:40:42.000Z</updated>
   <id>http://lz55.github.io/</id>
   
   <author>
@@ -16,13 +16,34 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
-    <title>chochttp_start</title>
+    <title>ChocHttp系列之二：架构介绍</title>
+    <link href="http://lz55.github.io/2016/08/24/choc-http-struture/"/>
+    <id>http://lz55.github.io/2016/08/24/choc-http-struture/</id>
+    <published>2016-08-24T05:17:23.000Z</published>
+    <updated>2016-08-24T05:40:42.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>本篇是ChocHttp系列的第二篇，架构介绍，待完成~~</p>
+<a id="more"></a>]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;本篇是ChocHttp系列的第二篇，架构介绍，待完成~~&lt;/p&gt;
+    
+    </summary>
+    
+    
+  </entry>
+  
+  <entry>
+    <title>ChocHttp系列开篇：使用介绍</title>
     <link href="http://lz55.github.io/2016/05/22/chochttp_start/"/>
     <id>http://lz55.github.io/2016/05/22/chochttp_start/</id>
     <published>2016-05-21T16:00:00.000Z</published>
-    <updated>2016-05-22T13:27:03.000Z</updated>
+    <updated>2016-08-24T05:42:32.000Z</updated>
     
-    <content type="html"><![CDATA[<h1 id="Choc系列"><a href="#Choc系列" class="headerlink" title="Choc系列"></a>Choc系列</h1><p>本文是Choc系列的开篇。程序员界最大的谎言是什么？就是“不要重复制造轮子”，说这句话是需要底气的，然而大部分程序员并没有。在我看来，掌握常用的轮子的实现原理并能灵活应用是一个程序员基本的修养，因此产生了ChocXXX系列，希望能通过重复制造轮子，磨炼自己的能力，也希望能给有需要的朋友一点帮助。为什么是Choc？因为我喜欢吃巧克力，我的偶像也是<a href="http://baike.baidu.com/subview/77657/11870485.htm?fromtitle=%E6%9D%B0%E6%A3%AE%C2%B7%E5%A8%81%E5%BB%89%E5%A7%86%E6%96%AF&amp;fromid=3342924&amp;type=syn" target="_blank" rel="external">白巧克力</a>。</p>
+    <content type="html"><![CDATA[<p>本篇是ChocHttp系列介绍文章的开篇，首先介绍一下具体的设计思路和使用方法。</p>
+<a id="more"></a>
+<h1 id="Choc系列"><a href="#Choc系列" class="headerlink" title="Choc系列"></a>Choc系列</h1><p>本文是Choc系列的开篇。程序员界最大的谎言是什么？就是“不要重复制造轮子”，说这句话是需要底气的，然而大部分程序员并没有。在我看来，掌握常用的轮子的实现原理并能灵活应用是一个程序员基本的修养，因此产生了ChocXXX系列，希望能通过重复制造轮子，磨炼自己的能力，也希望能给有需要的朋友一点帮助。为什么是Choc？因为我喜欢吃巧克力，我的偶像也是<a href="http://baike.baidu.com/subview/77657/11870485.htm?fromtitle=%E6%9D%B0%E6%A3%AE%C2%B7%E5%A8%81%E5%BB%89%E5%A7%86%E6%96%AF&amp;fromid=3342924&amp;type=syn" target="_blank" rel="external">白巧克力</a>。</p>
 <p>本系列将包括：</p>
 <ul>
 <li>ChocHttp：基于HttpURLConnection的简单易用的Android网络库</li>

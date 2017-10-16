@@ -1,95 +1,143 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8">
-  
-  <title>Displaying Bitmaps Efficiently | Hexo</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="Google官方教程学习笔记">
-<meta name="keywords" content="Android,Bitmap,Memory">
-<meta property="og:type" content="article">
-<meta property="og:title" content="Displaying Bitmaps Efficiently">
-<meta property="og:url" content="http://yoursite.com/2016/05/22/2015-07-16-displaying-bitmaps-efficiently/index.html">
-<meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="Google官方教程学习笔记">
-<meta property="og:updated_time" content="2016-08-19T11:32:53.000Z">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Displaying Bitmaps Efficiently">
-<meta name="twitter:description" content="Google官方教程学习笔记">
-  
-    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
-  
-  
-    <link rel="icon" href="/favicon.png">
-  
-  
-    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
-  
-  <link rel="stylesheet" href="/css/style.css">
-  
-
+    <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" >
+    <title>
+        
+        Displaying Bitmaps Efficiently · fi3ework&#39;s Studio
+        
+    </title>
+    <link rel="icon" href= /assests/favicon.ico>
+    <!-- 提前加载place holder  -->
+    <style>
+        @font-face {
+            font-family: 'Oswald-Regular';
+            src: url('/font/Oswald-Regular.ttf');
+        }
+        @font-face {
+            font-family: 'Source Sans Pro';
+            src: url('/font/Source Sans Pro.woff'),
+            url('/font/Source Sans Pro.woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Source Code Pro';
+            src: url('/font/SourceCodePro-Regular.ttf.woff'),
+            url('/font/SourceCodePro-Regular.ttf.woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
+        
+        .site-intro-placeholder {
+        position: absolute;
+        z-index: -2;
+        top: 0;
+        left: 0px;
+        width: calc(100% + 300px);
+        height: 100%;
+        background: repeating-linear-gradient(-45deg, #444 0, #444 80px, #333 80px, #333 160px);
+        background-position: center center;
+        transform: translate3d(-226px, 0, 0);
+        animation: gradient-move 2s ease-out 0s 1;
+        }
+        @keyframes gradient-move {
+        0% {
+            transform: translate3d(-226px, 0, 0);
+        }
+        99% {
+            transform: translate3d(0, 0, 0);
+        }
+        99.1% {
+            transform: translate3d(-226px, 0, 0);
+        }
+        100% {
+            transform: translate3d(-226px, 0, 0);
+        }
+    }
+    </style>
+    <link rel="stylesheet" href = /css/style.css?v=20171005 />
+    <script src="//cdn.staticfile.org/jquery/3.2.1/jquery.min.js" defer></script>
+    
+    <script src="/scripts/main.js" defer></script>
+    <!-- 百度统计  -->
+    
+    <!-- 谷歌统计  -->
+    
 </head>
+    
+        <body class="post-body">
+    
+    
+<header class="header">
 
-<body>
-  <div id="container">
-    <div id="wrap">
-      <header id="header">
-  <div id="banner"></div>
-  <div id="header-outer" class="outer">
-    <div id="header-title" class="inner">
-      <h1 id="logo-wrap">
-        <a href="/" id="logo">Hexo</a>
-      </h1>
-      
+    <div class="header-sidebar-menu">&#xe775;</div>
+    <!-- post页的toggle banner  -->
+    
+    <div class="banner">
+            <div class="blog-title">
+                <a href="/" >fi3ework&#39;s Studio.</a>
+            </div>
+            <div class="post-title">
+                <a href="#" class="post-name">Displaying Bitmaps Efficiently</a>
+            </div>
     </div>
-    <div id="header-inner" class="inner">
-      <nav id="main-nav">
-        <a id="main-nav-toggle" class="nav-icon"></a>
-        
-          <a class="main-nav-link" href="/">Home</a>
-        
-          <a class="main-nav-link" href="/archives">Archives</a>
-        
-      </nav>
-      <nav id="sub-nav">
-        
-          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
-        
-        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
-      </nav>
-      <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://yoursite.com"></form>
-      </div>
-    </div>
-  </div>
+    
+    <a class="home-link" href=/>fi3ework's Studio.</a>
 </header>
-      <div class="outer">
-        <section id="main"><article id="post-2015-07-16-displaying-bitmaps-efficiently" class="article article-type-post" itemscope itemprop="blogPost">
-  <div class="article-meta">
-    <a href="/2016/05/22/2015-07-16-displaying-bitmaps-efficiently/" class="article-date">
-  <time datetime="2016-05-22T05:19:25.000Z" itemprop="datePublished">2016-05-22</time>
-</a>
+    <div class="wrapper">
+        <div class="site-intro">
     
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Android/">Android</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
+    <!-- 主页  -->
     
     
-      <header class="article-header">
+    <!-- 404页  -->
+            
+    <div class="site-intro-img" style="background-image: url(http://oumn0o088.bkt.clouddn.com/post-bg.jpg)"></div>
+    <div class="site-intro-placeholder"></div>
+    <div class="site-intro-meta">
+        <!-- 标题  -->
+        <h1 class="intro-title">
+            <!-- 主页  -->
+            
+            Displaying Bitmaps Efficiently
+            <!-- 404 -->
+            
+        </h1>
+        <!-- 副标题 -->
+        <p class="intro-subtitle">
+            <!-- 主页副标题  -->
+            
+            
+        </p>
+        <!-- 404 -->
         
-  
-    <h1 class="article-title" itemprop="name">
-      Displaying Bitmaps Efficiently
-    </h1>
-  
-
-      </header>
+        <!-- 文章页meta -->
+        
+            <!-- 文章页标签  -->
+            
+                <div class= post-intro-tags >
     
-    <div class="article-entry" itemprop="articleBody">
-      
+        <a class="post-tag" href="javascript:void(0);" data-href = Android>Android</a>
+    
+        <a class="post-tag" href="javascript:void(0);" data-href = Bitmap>Bitmap</a>
+    
+        <a class="post-tag" href="javascript:void(0);" data-href = Memory>Memory</a>
+    
+</div>
+            
+            <div class="post-intro-meta">
+                <span class="post-intro-calander iconfont-archer">&#xe676;</span>
+                <span class="post-intro-time">2016/05/22</span>
+            </div>
+        
+    </div>
+</div>
+        <div class="container">
+            <main class="main post-page">
+    <article class="article-entry">
         <p><em>Google官方教程原文链接：<a href="http://developer.android.com/training/displaying-bitmaps/index.html" target="_blank" rel="external">http://developer.android.com/training/displaying-bitmaps/index.html</a></em></p>
 <h1 id="1-高效加载大图"><a href="#1-高效加载大图" class="headerlink" title="1. 高效加载大图"></a>1. 高效加载大图</h1><h2 id="1-1-读取bitmap的dimension和type"><a href="#1-1-读取bitmap的dimension和type" class="headerlink" title="1.1 读取bitmap的dimension和type"></a>1.1 读取bitmap的dimension和type</h2><p>BitmapFactory提供了一些方法来通过不同的途径创建bitmap，比如：decodeByteArray(), decodeFile(), decodeResource()等。但是这些方法都试图为图片分配内存，因此很容易OOM。为此每种方法都有一个BitmapFactory.Options参数，为该参数设置inJustDecodeBounds为true就可以在对图片解码的时候不分配内存。bitmap会返回null，但是bitmap的outWidth，outHeight，和outMimeType却可以获得。</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">BitmapFactory.Options options = <span class="keyword">new</span> BitmapFactory.Options();</div><div class="line">options.inJustDecodeBounds = <span class="keyword">true</span>;</div><div class="line">BitmapFactory.decodeResource(getResources(), R.id.myimage, options);</div><div class="line"><span class="keyword">int</span> imageHeight = options.outHeight;</div><div class="line"><span class="keyword">int</span> imageWidth = options.outWidth;</div><div class="line">String imageType = options.outMimeType;</div></pre></td></tr></table></figure>
@@ -122,145 +170,349 @@
 <figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">private</span> <span class="keyword">int</span> mCacheRefCount = <span class="number">0</span>;</div><div class="line"><span class="keyword">private</span> <span class="keyword">int</span> mDisplayRefCount = <span class="number">0</span>;</div><div class="line">...</div><div class="line"><span class="comment">// Notify the drawable that the displayed state has changed.</span></div><div class="line"><span class="comment">// Keep a count to determine when the drawable is no longer displayed.</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setIsDisplayed</span><span class="params">(<span class="keyword">boolean</span> isDisplayed)</span> </span>&#123;</div><div class="line">    <span class="keyword">synchronized</span> (<span class="keyword">this</span>) &#123;</div><div class="line">        <span class="keyword">if</span> (isDisplayed) &#123;</div><div class="line">            mDisplayRefCount++;</div><div class="line">            mHasBeenDisplayed = <span class="keyword">true</span>;</div><div class="line">        &#125; <span class="keyword">else</span> &#123;</div><div class="line">            mDisplayRefCount--;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// Check to see if recycle() can be called.</span></div><div class="line">    checkState();</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// Notify the drawable that the cache state has changed.</span></div><div class="line"><span class="comment">// Keep a count to determine when the drawable is no longer being cached.</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setIsCached</span><span class="params">(<span class="keyword">boolean</span> isCached)</span> </span>&#123;</div><div class="line">    <span class="keyword">synchronized</span> (<span class="keyword">this</span>) &#123;</div><div class="line">        <span class="keyword">if</span> (isCached) &#123;</div><div class="line">            mCacheRefCount++;</div><div class="line">        &#125; <span class="keyword">else</span> &#123;</div><div class="line">            mCacheRefCount--;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// Check to see if recycle() can be called.</span></div><div class="line">    checkState();</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">checkState</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="comment">// If the drawable cache and display ref counts = 0, and this drawable</span></div><div class="line">    <span class="comment">// has been displayed, then recycle.</span></div><div class="line">    <span class="keyword">if</span> (mCacheRefCount &lt;= <span class="number">0</span> &amp;&amp; mDisplayRefCount &lt;= <span class="number">0</span> &amp;&amp; mHasBeenDisplayed</div><div class="line">            &amp;&amp; hasValidBitmap()) &#123;</div><div class="line">        getBitmap().recycle();</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">boolean</span> <span class="title">hasValidBitmap</span><span class="params">()</span> </span>&#123;</div><div class="line">    Bitmap bitmap = getBitmap();</div><div class="line">    <span class="keyword">return</span> bitmap != <span class="keyword">null</span> &amp;&amp; !bitmap.isRecycled();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 <h2 id="4-2-Android-3-0之后的Bitmap内存管理"><a href="#4-2-Android-3-0之后的Bitmap内存管理" class="headerlink" title="4.2 Android 3.0之后的Bitmap内存管理"></a>4.2 Android 3.0之后的Bitmap内存管理</h2><p>Android3.0引入了BitmapFactory.Options.inBitmap属性，如果设置了该属性，解码的时候就会尝试重用之前图片分配的内存，但是这个条件比较严苛，Android4.4之前只有两个Bitmap大小相等并且inSampleSize=1才可以，Android4.4及之后，当新的Bitmap的字节数小于等于被重用Bitmap被分配的字节数时，可以进行复用。具体的代码实现见：<a href="http://developer.android.com/training/displaying-bitmaps/manage-memory.html#inBitmap" target="_blank" rel="external">http://developer.android.com/training/displaying-bitmaps/manage-memory.html#inBitmap</a></p>
 
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://yoursite.com/2016/05/22/2015-07-16-displaying-bitmaps-efficiently/" data-id="cj8tugqmj00060oet2i4ragr9" class="article-share-link">Share</a>
-      
-      
-  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Android/">Android</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Bitmap/">Bitmap</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Memory/">Memory</a></li></ul>
+    </article>
+    <!-- 前后页  -->
+    <ul class="post-pager">
+        
+            <li class="next">
+                <a href= "/2016/05/22/2015-07-08-Android-Support-Library-翻译/" title= Android Support Library >
+                    <span>Next Post</span>
+                    <span>Android Support Library</span>
+                </a>
+            </li>
+        
+        
+            <li class="previous">
+                <a href= "/2016/05/22/2015-08-16-android-touch/" title= Android touch事件处理流程 >
+                    <span>Previous Post</span>
+                    <span>Android touch事件处理流程</span>
+                </a>
+            </li>
+        
+    </ul>
+    <!-- 评论插件 -->
+    <!-- 来必力City版安装代码 -->
 
-    </footer>
-  </div>
-  
+<!-- City版安装代码已完成 -->
     
-<nav id="article-nav">
-  
-    <a href="/2016/05/22/2015-07-08-Android-Support-Library-翻译/" id="article-nav-newer" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Newer</strong>
-      <div class="article-nav-title">
-        
-          Android Support Library
-        
-      </div>
-    </a>
-  
-  
-    <a href="/2016/05/22/2015-08-16-android-touch/" id="article-nav-older" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Older</strong>
-      <div class="article-nav-title">Android touch事件处理流程</div>
-    </a>
-  
-</nav>
-
-  
-</article>
-
-</section>
-        
-          <aside id="sidebar">
-  
     
-  <div class="widget-wrap">
-    <h3 class="widget-title">Categories</h3>
-    <div class="widget">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Android/">Android</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/ChocHttp/">ChocHttp</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/Java/">Java</a></li></ul>
-    </div>
-  </div>
+    <!--PC版-->
 
-
-  
     
-  <div class="widget-wrap">
-    <h3 class="widget-title">Tags</h3>
-    <div class="widget">
-      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Android/">Android</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Android-图片库/">Android 图片库</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Android，Material-Design/">Android，Material Design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Bitmap/">Bitmap</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Choc/">Choc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Http/">Http</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MVVM/">MVVM</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Memory/">Memory</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Weak-Reference/">Weak Reference</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/touch/">touch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/内存泄露/">内存泄露</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/解耦/">解耦</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/设计模式/">设计模式</a></li></ul>
-    </div>
-  </div>
-
-
-  
+</main>
+            <!-- profile -->
+            
+        </div>
+        <footer class="footer">
+    <!-- social  -->
     
-  <div class="widget-wrap">
-    <h3 class="widget-title">Tag Cloud</h3>
-    <div class="widget tagcloud">
-      <a href="/tags/Android/" style="font-size: 20px;">Android</a> <a href="/tags/Android-图片库/" style="font-size: 10px;">Android 图片库</a> <a href="/tags/Android，Material-Design/" style="font-size: 10px;">Android，Material Design</a> <a href="/tags/Bitmap/" style="font-size: 10px;">Bitmap</a> <a href="/tags/Choc/" style="font-size: 10px;">Choc</a> <a href="/tags/Http/" style="font-size: 10px;">Http</a> <a href="/tags/MVVM/" style="font-size: 10px;">MVVM</a> <a href="/tags/Memory/" style="font-size: 10px;">Memory</a> <a href="/tags/Weak-Reference/" style="font-size: 10px;">Weak Reference</a> <a href="/tags/java/" style="font-size: 10px;">java</a> <a href="/tags/touch/" style="font-size: 10px;">touch</a> <a href="/tags/内存泄露/" style="font-size: 10px;">内存泄露</a> <a href="/tags/解耦/" style="font-size: 10px;">解耦</a> <a href="/tags/设计模式/" style="font-size: 10px;">设计模式</a>
-    </div>
-  </div>
-
-  
+    <div class="social">
+        
     
-  <div class="widget-wrap">
-    <h3 class="widget-title">Archives</h3>
-    <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/12/">December 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/05/">May 2016</a></li></ul>
-    </div>
-  </div>
-
-
-  
+        
+            
+                <a href="emailto:12345@qq.com" class="iconfont-archer email" title=email ></a>
+            
+        
     
-  <div class="widget-wrap">
-    <h3 class="widget-title">Recent Posts</h3>
-    <div class="widget">
-      <ul>
         
-          <li>
-            <a href="/2016/12/24/2016-12-24-LightImageLoader/">从零设计一款Android图片库</a>
-          </li>
+            
+                <a href="//github.com/fi3ework" class="iconfont-archer github" target="_blank" title="github"></a>
+            
         
-          <li>
-            <a href="/2016/08/24/2016-08-24-choc-http-struture/">ChocHttp系列之二：架构介绍</a>
-          </li>
+    
         
-          <li>
-            <a href="/2016/05/22/2016-05-22-chochttp_start/">ChocHttp系列开篇：使用介绍</a>
-          </li>
+    
         
-          <li>
-            <a href="/2016/05/22/2015-05-11-singleton-memory-leak/">单例模式导致的Android内存泄露</a>
-          </li>
+            
+                <a href="/atom.xml" class="iconfont-archer rss" target="_blank" title="rss"></a>
+            
         
-          <li>
-            <a href="/2016/05/22/2015-05-18-MVP-Pattern/">Android开发中的MVVM模式实践</a>
-          </li>
-        
-      </ul>
-    </div>
-  </div>
+    
 
-  
-</aside>
-        
-      </div>
-      <footer id="footer">
-  
-  <div class="outer">
-    <div id="footer-info" class="inner">
-      &copy; 2017 John Doe<br>
-      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
     </div>
-  </div>
+    
+    <!-- powered by Hexo  -->
+    <div class="copyright">
+        <span id="hexo-power">Powered by <a href="https://hexo.io/" target="_blank">Hexo</a></span><span class="iconfont-archer power">&#xe635;</span><span id="theme-info">Theme <a href="https://github.com/fi3ework/hexo-theme-archer" target="_blank">archer</a></span>
+    </div>
+    <!-- 不蒜子  -->
+    
 </footer>
     </div>
-    <nav id="mobile-nav">
-  
-    <a href="/" class="mobile-nav-link">Home</a>
-  
-    <a href="/archives" class="mobile-nav-link">Archives</a>
-  
-</nav>
+    <!-- toc -->
     
-
-<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
-
-
-  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
-  <script src="/fancybox/jquery.fancybox.pack.js"></script>
-
-
-<script src="/js/script.js"></script>
-
+    <div class="toc-wrapper">
+        <div class="toc-catalog">
+            CATALOG
+        </div>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#1-高效加载大图"><span class="toc-number">1.</span> <span class="toc-text">1. 高效加载大图</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-1-读取bitmap的dimension和type"><span class="toc-number">1.1.</span> <span class="toc-text">1.1 读取bitmap的dimension和type</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-2-将图片质量降级加载进内存"><span class="toc-number">1.2.</span> <span class="toc-text">1.2 将图片质量降级加载进内存</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#2-避免在UI线程处理Bitmap"><span class="toc-number">2.</span> <span class="toc-text">2. 避免在UI线程处理Bitmap</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#2-1-使用AsyncTask"><span class="toc-number">2.1.</span> <span class="toc-text">2.1 使用AsyncTask</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-2-处理并发"><span class="toc-number">2.2.</span> <span class="toc-text">2.2 处理并发</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#3-Cache-Bitmap"><span class="toc-number">3.</span> <span class="toc-text">3. Cache Bitmap</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#处理配置的改变"><span class="toc-number">3.1.</span> <span class="toc-text">处理配置的改变</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#4-管理Bitmap内存"><span class="toc-number">4.</span> <span class="toc-text">4 管理Bitmap内存</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#4-1-Android2-3或者更低的版本"><span class="toc-number">4.1.</span> <span class="toc-text">4.1 Android2.3或者更低的版本</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-2-Android-3-0之后的Bitmap内存管理"><span class="toc-number">4.2.</span> <span class="toc-text">4.2 Android 3.0之后的Bitmap内存管理</span></a></li></ol></li></ol>
+    </div>
+    
+    <div class="back-top">&#xe639;</div>
+    <div class="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-category">
+            <span class="sidebar-archive-link"><span class="iconfont-archer">&#xe67d;</span>Archive</span>
+            <span class="sidebar-tags-link"><span class="iconfont-archer">&#xe610;</span>Tag</span>
+        </div>
+    </div>
+    <div class="sidebar-content sidebar-content-show-archive">
+          <div class="sidebar-archive">
+    <!-- 在ejs中将archive按照时间排序 -->
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <div class="total-archive"> Total : 9 </div>
+    
+    <div class="post-archive">
+    
+    
+    
+    
+    <div class="archive-year"> 2016 </div>
+    <ul class="year-list">
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">12/24</span><a class="archive-post-title" href= "/2016/12/24/2016-12-24-LightImageLoader/" >从零设计一款Android图片库</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">08/24</span><a class="archive-post-title" href= "/2016/08/24/2016-08-24-choc-http-struture/" >ChocHttp系列之二：架构介绍</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/22</span><a class="archive-post-title" href= "/2016/05/22/2016-05-22-chochttp_start/" >ChocHttp系列开篇：使用介绍</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/22</span><a class="archive-post-title" href= "/2016/05/22/2015-10-11-java-weak-references/" >Java Weak References</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/22</span><a class="archive-post-title" href= "/2016/05/22/2015-08-16-android-touch/" >Android touch事件处理流程</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/22</span><a class="archive-post-title" href= "/2016/05/22/2015-07-16-displaying-bitmaps-efficiently/" >Displaying Bitmaps Efficiently</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/22</span><a class="archive-post-title" href= "/2016/05/22/2015-07-08-Android-Support-Library-翻译/" >Android Support Library</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/22</span><a class="archive-post-title" href= "/2016/05/22/2015-05-18-MVP-Pattern/" >Android开发中的MVVM模式实践</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/22</span><a class="archive-post-title" href= "/2016/05/22/2015-05-11-singleton-memory-leak/" >单例模式导致的Android内存泄露</a>
+        </li>
+    
+    </div>
   </div>
-</body>
+        <div class="sidebar-tags">
+    <div class="sidebar-tags-name">
+    
+        <span class="sidebar-tag-name"><a href= "#">设计模式</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">内存泄露</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">MVVM</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">解耦</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">Android，Material Design</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">Android</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">Bitmap</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">Memory</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">touch</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">java</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">Weak Reference</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">Choc</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">Http</a></span>
+    
+        <span class="sidebar-tag-name"><a href= "#">Android 图片库</a></span>
+    
+    </div>
+    <div class="tag-load-fail" style="display: none; color: #ccc; font-size: 0.6rem;">
+    缺失模块。<br/>
+    1、请确保node版本大于6.2<br/>
+    2、在博客根目录（注意不是archer根目录）执行以下命令：<br/>
+    <span style="color: #f75357; font-size: 1rem; line-height: 2rem;">npm i hexo-generator-json-content --save</span><br/>
+    3、在根目录_config.yml里添加配置：
+    <pre style="color: #888; font-size: 0.6rem;">
+jsonContent:
+  meta: false
+  pages: false
+  posts:
+    title: true
+    date: true
+    path: true
+    text: false
+    raw: false
+    content: false
+    slug: false
+    updated: false
+    comments: false
+    link: false
+    permalink: false
+    excerpt: false
+    categories: false
+    tags: true</pre>
+    </div> 
+    <div class="sidebar-tag-list"></div>
+</div>
+    </div>
+</div> 
+    <script>
+    var jsInfo = {
+        root: '/'
+    }
+</script>
+    <!-- 不蒜子  -->
+    
+    <!-- CNZZ统计  -->
+    
+    </div>
+    </body>
 </html>
+
+

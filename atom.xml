@@ -5,7 +5,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://lz55.github.io/"/>
-  <updated>2016-08-24T05:40:42.000Z</updated>
+  <updated>2016-12-24T09:00:48.000Z</updated>
   <id>http://lz55.github.io/</id>
   
   <author>
@@ -14,6 +14,49 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>从零设计一款Android图片库</title>
+    <link href="http://lz55.github.io/2016/12/24/LightImageLoader/"/>
+    <id>http://lz55.github.io/2016/12/24/LightImageLoader/</id>
+    <published>2016-12-24T06:11:02.000Z</published>
+    <updated>2016-12-24T09:00:48.000Z</updated>
+    
+    <content type="html"><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>Android发展到今天，基础的框架已经非常完善，比如图片库，网络库，事件总线等，以图片库为例，常见的有Universal-Image-Loader, Picasso, Fresco, Glide。对于它们的使用，大部分程序员能很快地掌握，更优秀的能了解里面的实现原理，但是，从零设计一款图片库，则是一件挺复杂的事情了。下面我将以自己写的一个小型图片库为例，简单介绍下具体的设计思路。这个图片库严格意义上并不是从零开始，里面的一些实现借鉴了Picasso的思路，并做了一些的改进和扩展。</p>
+<h1 id="支持特性及使用方式"><a href="#支持特性及使用方式" class="headerlink" title="支持特性及使用方式"></a>支持特性及使用方式</h1><p>使用方式借鉴了Picasso的链式调用：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">LightImageLoader.with(context)</div><div class="line">        .load(url)</div><div class="line">        .width(<span class="number">200</span>)</div><div class="line">        .height(<span class="number">200</span>)</div><div class="line">        .bitmapConfig(Bitmap.Config.RGB_565)</div><div class="line">        .centerInside(<span class="keyword">false</span>)</div><div class="line">        .fade(<span class="keyword">true</span>)</div><div class="line">        .fadeTime(<span class="number">200</span>)</div><div class="line">        .placeholderDrawable(<span class="keyword">new</span> ColorDrawable(Color.LTGRAY))</div><div class="line">        .errorResId(R.drawable.error)</div><div class="line">        .into(imageView);</div></pre></td></tr></table></figure>
+<p>支持特性：</p>
+<ul>
+<li>加载网络图片</li>
+<li>合理的内存及磁盘空间利用</li>
+<li>通过设定ImageView大小，展示样式使用更小的内存空间</li>
+<li>支持渐入渐出</li>
+<li>支持设置ErrorDrawable, PlaceHolderDrawable</li>
+<li>自动判定Gif图，实现页面内播放，ImageView设置新的Bitmap或者回收掉的时候停止播放</li>
+<li>支持任务暂停和恢复，可以轻松实现在页面滚动时候停止加载，页面静止的时候恢复加载</li>
+</ul>
+<p>还有更高级的使用方式，支持注入不同的模块实现来进行扩展或者替换掉内置实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div></pre></td><td class="code"><pre><div class="line">LightImageLoader loader = <span class="keyword">new</span> LightImageLoader.Builder(<span class="keyword">this</span>)</div><div class="line">        .setRequestTransformer(<span class="keyword">new</span> RequestTransformer() &#123;</div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> Request <span class="title">transformRequest</span><span class="params">(Request request)</span> </span>&#123;</div><div class="line">                <span class="keyword">return</span> <span class="keyword">null</span>;</div><div class="line">            &#125;</div><div class="line">        &#125;)</div><div class="line">        .setCache(<span class="keyword">new</span> Cache() &#123;</div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> Bitmap <span class="title">getFromMemory</span><span class="params">(String key)</span> </span>&#123;</div><div class="line">                <span class="keyword">return</span> <span class="keyword">null</span>;</div><div class="line">            &#125;</div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> Response <span class="title">getFromDisk</span><span class="params">(String key)</span> </span>&#123;</div><div class="line">                <span class="keyword">return</span> <span class="keyword">null</span>;</div><div class="line">            &#125;</div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">put</span><span class="params">(String key, Response response)</span> </span>&#123;</div><div class="line">            &#125;</div><div class="line">        &#125;)</div><div class="line">        .setDefaultConfig(Bitmap.Config.ARGB_8888)</div><div class="line">        .addRequestHandler(<span class="keyword">new</span> RequestHandler() &#123;</div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">canHandleRequest</span><span class="params">(Request data)</span> </span>&#123;</div><div class="line">                <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">            &#125;</div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> Response <span class="title">load</span><span class="params">(Request request)</span> <span class="keyword">throws</span> IOException </span>&#123;</div><div class="line">                <span class="keyword">return</span> <span class="keyword">null</span>;</div><div class="line">            &#125;</div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">getRetryCount</span><span class="params">()</span> </span>&#123;</div><div class="line">                <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">            &#125;</div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">canRetry</span><span class="params">(<span class="keyword">boolean</span> airplaneMode, NetworkInfo info)</span> </span>&#123;</div><div class="line">                <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">            &#125;</div><div class="line">        &#125;)</div><div class="line">        .setDownloader(<span class="keyword">new</span> Downloader() &#123;</div><div class="line">            <span class="meta">@Nullable</span></div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> Response <span class="title">load</span><span class="params">(@NonNull Uri uri)</span> <span class="keyword">throws</span> IOException </span>&#123;</div><div class="line">                <span class="keyword">return</span> <span class="keyword">null</span>;</div><div class="line">            &#125;</div><div class="line">            <span class="meta">@Override</span></div><div class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">shutdown</span><span class="params">()</span> </span>&#123;</div><div class="line">            &#125;</div><div class="line">        &#125;)</div><div class="line">        .build();</div><div class="line">loader.load(<span class="string">"some image url"</span>).into(imageView);</div><div class="line"></div><div class="line"><span class="comment">//在列表滚动中停止加载</span></div><div class="line">recyclerView.addOnScrollListener(<span class="keyword">new</span> RecyclerView.OnScrollListener() &#123;</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onScrollStateChanged</span><span class="params">(RecyclerView recyclerView, <span class="keyword">int</span> newState)</span> </span>&#123;</div><div class="line">        <span class="keyword">super</span>.onScrollStateChanged(recyclerView, newState);</div><div class="line">        <span class="keyword">if</span> (newState == RecyclerView.SCROLL_STATE_DRAGGING) &#123;</div><div class="line">            <span class="comment">// pause</span></div><div class="line">            LightImageLoader.pause();</div><div class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (newState == RecyclerView.SCROLL_STATE_IDLE) &#123;</div><div class="line">            <span class="comment">// resume</span></div><div class="line">            LightImageLoader.resume();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;);</div></pre></td></tr></table></figure>
+<ul>
+<li><code>Transformer</code>来实现任务调度之前对request进行处理，可以实现对URL的动态替换</li>
+<li><code>Cache</code>是缓存逻辑的接口，可以注入外部特定的实现</li>
+<li><code>Config</code>代表加载图片的质量</li>
+<li><code>RequestHandler</code>接口可以实现图片加载模式的扩展，比如增加对资源文件中的图片加载模式，可以实现并注入<code>RequestHandler</code>接口，并针对合适的Request对<code>canHandleRequest()</code>方法返回true</li>
+<li>Downloader接口是真正实现网络请求的部分，外部可以通过注入自己的实现替换掉，这个特性特别适合业务方拥有自己的网络库的时候，可以用外部网络库替换掉内置的<code>HttpUrlConnection</code>实现的网络请求逻辑</li>
+</ul>
+<h1 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h1><p><img src="/images/LIL.001.jpeg" alt="sdsd"></p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h1 id=&quot;序言&quot;&gt;&lt;a href=&quot;#序言&quot; class=&quot;headerlink&quot; title=&quot;序言&quot;&gt;&lt;/a&gt;序言&lt;/h1&gt;&lt;p&gt;Android发展到今天，基础的框架已经非常完善，比如图片库，网络库，事件总线等，以图片库为例，常见的有Universal-Image-Lo
+    
+    </summary>
+    
+    
+      <category term="Android 图片库" scheme="http://lz55.github.io/tags/Android-%E5%9B%BE%E7%89%87%E5%BA%93/"/>
+    
+  </entry>
   
   <entry>
     <title>ChocHttp系列之二：架构介绍</title>
@@ -39,12 +82,10 @@
     <link href="http://lz55.github.io/2016/05/22/chochttp_start/"/>
     <id>http://lz55.github.io/2016/05/22/chochttp_start/</id>
     <published>2016-05-21T16:00:00.000Z</published>
-    <updated>2016-08-24T05:42:32.000Z</updated>
+    <updated>2017-10-16T06:58:34.000Z</updated>
     
-    <content type="html"><![CDATA[<p>本篇是ChocHttp系列介绍文章的开篇，首先介绍一下具体的设计思路和使用方法。</p>
-<a id="more"></a>
-<h1 id="Choc系列"><a href="#Choc系列" class="headerlink" title="Choc系列"></a>Choc系列</h1><p>本文是Choc系列的开篇。程序员界最大的谎言是什么？就是“不要重复制造轮子”，说这句话是需要底气的，然而大部分程序员并没有。在我看来，掌握常用的轮子的实现原理并能灵活应用是一个程序员基本的修养，因此产生了ChocXXX系列，希望能通过重复制造轮子，磨炼自己的能力，也希望能给有需要的朋友一点帮助。为什么是Choc？因为我喜欢吃巧克力，我的偶像也是<a href="http://baike.baidu.com/subview/77657/11870485.htm?fromtitle=%E6%9D%B0%E6%A3%AE%C2%B7%E5%A8%81%E5%BB%89%E5%A7%86%E6%96%AF&amp;fromid=3342924&amp;type=syn" target="_blank" rel="external">白巧克力</a>。</p>
-<p>本系列将包括：</p>
+    <content type="html"><![CDATA[<a id="more"></a>
+<h1 id="自己动手做一个XX库"><a href="#自己动手做一个XX库" class="headerlink" title="自己动手做一个XX库"></a>自己动手做一个XX库</h1><p>本系列将包括：</p>
 <ul>
 <li>ChocHttp：基于HttpURLConnection的简单易用的Android网络库</li>
 <li>ChocImage：简单易用的Android图片库</li>
@@ -76,9 +117,9 @@
       <category term="ChocHttp" scheme="http://lz55.github.io/categories/ChocHttp/"/>
     
     
-      <category term="Choc" scheme="http://lz55.github.io/tags/Choc/"/>
-    
       <category term="Android" scheme="http://lz55.github.io/tags/Android/"/>
+    
+      <category term="Choc" scheme="http://lz55.github.io/tags/Choc/"/>
     
       <category term="Http" scheme="http://lz55.github.io/tags/Http/"/>
     

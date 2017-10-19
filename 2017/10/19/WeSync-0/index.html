@@ -7,13 +7,15 @@
 
     
 
-    <title>归档 | 纸上得来终觉浅，绝知此事要躬行</title>
+    <title>微信内容抓取方案 | 纸上得来终觉浅，绝知此事要躬行</title>
     <meta name="author" content="LiuZhuang">
+    
+    <meta name="description" content="微信内容抓取的方案探索">
     
     
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-    
+    <meta property="og:title" content="微信内容抓取方案"/>
     <meta property="og:site_name" content="随便写点什么"/>
 
     
@@ -175,93 +177,128 @@
 
     <main>
         <div class="container main-container">
-    
-
-<nav class="page-nav hide-on-small-only">
+    <nav class="page-nav hide-on-small-only">
     <div class="nav-wrapper indigo">
-        <span class="breadcrumb">当前位置（归档）</span>
+        <span class="breadcrumb">当前位置（分类目录）</span>
+        
+            
+
         
 
         
     </div>
 </nav>
 
+<article>
+    <div class="card">
+        <div class="card-content">
+            
+
+            <div class="article-title">
+                
+    
+        <h1>微信内容抓取方案</h1>
+    
 
 
-    <ul class="collapsible mt-0" data-collapsible="accordion">
-        
-        
-            <li>
-                <div class="collapsible-header active">
-                    <i class="fa fa-archive"></i>2017
-                </div>
-                <div class="collapsible-body">
-                    <div class="collection">
-                        
-                            <a href="/2017/10/19/WeSync-0/" class="collection-item grey-text text-darken-1">
-                                <time datetime="2017-10-19T07:58:23.000Z">2017-10-19</time>
-                                <span>&nbsp;&nbsp;&nbsp;</span>
-                                微信内容抓取方案
-                            </a>
-                        
-                    </div>
-                </div>
-            </li>
-        
-            <li>
-                <div class="collapsible-header ">
-                    <i class="fa fa-archive"></i>2016
-                </div>
-                <div class="collapsible-body">
-                    <div class="collection">
-                        
-                            <a href="/2016/12/24/2016-12-24-LightImageLoader/" class="collection-item grey-text text-darken-1">
-                                <time datetime="2016-12-24T06:11:02.000Z">2016-12-24</time>
-                                <span>&nbsp;&nbsp;&nbsp;</span>
-                                从零设计一款Android图片库
-                            </a>
-                        
-                            <a href="/2016/05/22/2015-05-11-singleton-memory-leak/" class="collection-item grey-text text-darken-1">
-                                <time datetime="2016-05-22T05:19:25.000Z">2016-05-22</time>
-                                <span>&nbsp;&nbsp;&nbsp;</span>
-                                单例模式导致的Android内存泄露
-                            </a>
-                        
-                            <a href="/2016/05/22/2015-05-18-MVP-Pattern/" class="collection-item grey-text text-darken-1">
-                                <time datetime="2016-05-22T05:19:25.000Z">2016-05-22</time>
-                                <span>&nbsp;&nbsp;&nbsp;</span>
-                                Android开发中的MVVM模式实践
-                            </a>
-                        
-                            <a href="/2016/05/22/2015-07-16-displaying-bitmaps-efficiently/" class="collection-item grey-text text-darken-1">
-                                <time datetime="2016-05-22T05:19:25.000Z">2016-05-22</time>
-                                <span>&nbsp;&nbsp;&nbsp;</span>
-                                Displaying Bitmaps Efficiently
-                            </a>
-                        
-                            <a href="/2016/05/22/2015-07-08-Android-Support-Library-翻译/" class="collection-item grey-text text-darken-1">
-                                <time datetime="2016-05-22T05:19:25.000Z">2016-05-22</time>
-                                <span>&nbsp;&nbsp;&nbsp;</span>
-                                Android Support Library
-                            </a>
-                        
-                            <a href="/2016/05/22/2015-10-11-java-weak-references/" class="collection-item grey-text text-darken-1">
-                                <time datetime="2016-05-22T05:19:25.000Z">2016-05-22</time>
-                                <span>&nbsp;&nbsp;&nbsp;</span>
-                                Java Weak References
-                            </a>
-                        
-                            <a href="/2016/05/22/2015-08-16-android-touch/" class="collection-item grey-text text-darken-1">
-                                <time datetime="2016-05-22T05:19:25.000Z">2016-05-22</time>
-                                <span>&nbsp;&nbsp;&nbsp;</span>
-                                Android touch事件处理流程
-                            </a>
-                        
-                    </div>
-                </div>
-            </li>
-        
-    </ul>
+            </div>
+            <time class="pink-link-context" datetime="2017-10-19T07:58:23.000Z"><a href="/2017/10/19/WeSync-0/">2017-10-19</a></time>
+
+            <span id="busuanzi_container_page_pv" class="read-times-container">
+    <i class="fa fa-eye"></i>
+    <span id="busuanzi_value_page_pv"></span>
+</span>
+
+            
+
+            <div class="toc pink-link-context hide-on-med-and-down">
+    <ol class="section table-of-contents"><li class="section table-of-contents-item section table-of-contents-level-1"><a class="section table-of-contents-link" href="#背景"><span class="section table-of-contents-text">背景</span></a></li><li class="section table-of-contents-item section table-of-contents-level-1"><a class="section table-of-contents-link" href="#爬取方式汇总"><span class="section table-of-contents-text">爬取方式汇总</span></a><ol class="section table-of-contents-child"><li class="section table-of-contents-item section table-of-contents-level-2"><a class="section table-of-contents-link" href="#http-weixin-sogou-com-抓取最新内容"><span class="section table-of-contents-text">http://weixin.sogou.com/抓取最新内容</span></a></li><li class="section table-of-contents-item section table-of-contents-level-2"><a class="section table-of-contents-link" href="#微信客户端-本地代理"><span class="section table-of-contents-text">微信客户端+本地代理</span></a><ol class="section table-of-contents-child"><li class="section table-of-contents-item section table-of-contents-level-3"><a class="section table-of-contents-link" href="#整体结构"><span class="section table-of-contents-text">整体结构</span></a></li><li class="section table-of-contents-item section table-of-contents-level-3"><a class="section table-of-contents-link" href="#https解析"><span class="section table-of-contents-text">https解析</span></a><ol class="section table-of-contents-child"><li class="section table-of-contents-item section table-of-contents-level-4"><a class="section table-of-contents-link" href="#中间人攻击简介"><span class="section table-of-contents-text">中间人攻击简介</span></a></li></ol></li><li class="section table-of-contents-item section table-of-contents-level-3"><a class="section table-of-contents-link" href="#实现方案"><span class="section table-of-contents-text">实现方案</span></a></li><li class="section table-of-contents-item section table-of-contents-level-3"><a class="section table-of-contents-link" href="#自动化方案"><span class="section table-of-contents-text">自动化方案</span></a></li><li class="section table-of-contents-item section table-of-contents-level-3"><a class="section table-of-contents-link" href="#需要优化的地方"><span class="section table-of-contents-text">需要优化的地方</span></a></li><li class="section table-of-contents-item section table-of-contents-level-3"><a class="section table-of-contents-link" href="#优缺点"><span class="section table-of-contents-text">优缺点</span></a></li></ol></li></ol></li><li class="section table-of-contents-item section table-of-contents-level-1"><a class="section table-of-contents-link" href="#参考资料"><span class="section table-of-contents-text">参考资料</span></a></li></ol>
+</div>
+
+
+            <div class="entry pink-link-context">
+                <p>微信内容抓取的方案探索<br><a id="more"></a></p>
+<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><ol>
+<li>微信对API调用的封锁比较严重，即使作为公众号管理者，API的调用需要以access_token为接口调用凭据，access_token在2小时内有效，过期需要重新获取，但1天内获取次数有限</li>
+<li>微信公众号的历史记录页面URL包含一个校验的KEY，有效期为2个小时，而且 key 不通用，每个公众号必须单独生成</li>
+<li><a href="http://weixin.sogou.com/" target="_blank" rel="external">http://weixin.sogou.com/</a> 可以访问历史记录，但是只能访问最近的10条</li>
+</ol>
+<h1 id="爬取方式汇总"><a href="#爬取方式汇总" class="headerlink" title="爬取方式汇总"></a>爬取方式汇总</h1><h2 id="http-weixin-sogou-com-抓取最新内容"><a href="#http-weixin-sogou-com-抓取最新内容" class="headerlink" title="http://weixin.sogou.com/抓取最新内容"></a><a href="http://weixin.sogou.com/" target="_blank" rel="external">http://weixin.sogou.com/</a>抓取最新内容</h2><p>搜狗为微信提供了一个历史内容的搜索能力，通过一个稳定的链接 <a href="http://weixin.sogou.com/weixin?type=1&amp;s_from=input&amp;query={账号名称}&amp;ie=utf8&amp;_sug_=n&amp;_sug_type_=" target="_blank" rel="external">http://weixin.sogou.com/weixin?type=1&amp;s_from=input&amp;query={账号名称}&amp;ie=utf8&amp;_sug_=n&amp;_sug_type_=</a> 可以得到某个订阅号最近10条消息的集合页，然后可以进行爬取。</p>
+<p><strong>优点：</strong></p>
+<p>页面结构稳定，爬虫相对也就比较稳定</p>
+<p><strong>缺点：</strong></p>
+<ol>
+<li>只能爬取最近10条消息，对于历史内容敏感的业务方不适用</li>
+<li>搜狗的反爬虫策略比较强大，同一个IP短时间内多次访问会有验证码，要么通过对爬虫设置随机因子尽量规避，要么需要费比较大的成本进行验证码攻破。</li>
+</ol>
+<h2 id="微信客户端-本地代理"><a href="#微信客户端-本地代理" class="headerlink" title="微信客户端+本地代理"></a>微信客户端+本地代理</h2><p>由于不想陷入和搜狗之间的爬虫攻防战，所以必须另辟蹊径。</p>
+<h3 id="整体结构"><a href="#整体结构" class="headerlink" title="整体结构"></a>整体结构</h3><p>因为微信的历史内容页面只能通过微信客户端访问，所以配合本地代理是可以抓取出来的。</p>
+<p>整体系统结构如下图所示：</p>
+<p><img src="http://ossgw.alicdn.com/biu/1500258895263-RIpzPP5UuWOa2wnn.png" alt=""></p>
+<p>爬取过程分为：<br>授权 -&gt; 客户端脚本录入 -&gt; 执行关注和访问历史内容页面的操作 -&gt; 上传内容URL -&gt; 格式化+本地化 -&gt;再编辑 -&gt; 存储</p>
+<h3 id="https解析"><a href="#https解析" class="headerlink" title="https解析"></a>https解析</h3><p>在这套系统中，核心难点在于https报文的解析，业内已有成熟的中间人攻击解决方案。</p>
+<h4 id="中间人攻击简介"><a href="#中间人攻击简介" class="headerlink" title="中间人攻击简介"></a>中间人攻击简介</h4><p>以下来自维基百科：</p>
+<blockquote>
+<p>在密码学和计算机安全领域中，中间人攻击（英语：Man-in-the-middle attack，缩写：MITM）是指攻击者与通讯的两端分别创建独立的联系，并交换其所收到的数据，使通讯的两端认为他们正在通过一个私密的连接与对方直接对话，但事实上整个会话都被攻击者完全控制。在中间人攻击中，攻击者可以拦截通讯双方的通话并插入新的内容。在许多情况下这是很简单的（例如，在一个未加密的Wi-Fi 无线接入点的接受范围内的中间人攻击者，可以将自己作为一个中间人插入这个网络）。</p>
+<p>一个中间人攻击能成功的前提条件是攻击者能将自己伪装成每一个参与会话的终端，并且不被其他终端识破。中间人攻击是一个（缺乏）相互认证的攻击。大多数的加密协议都专门加入了一些特殊的认证方法以阻止中间人攻击。例如，SSL协议可以验证参与通讯的一方或双方使用的证书是否是由权威的受信任的数字证书认证机构颁发，并且能执行双向身份认证。</p>
+</blockquote>
+<p>根据中间人攻击的原理绘制了一个流程图：</p>
+<p><img src="http://ossgw.alicdn.com/biu/1500616274794-Ta5CcKEwO1fCBfzN.png" alt=""></p>
+<p>需要说明的是：</p>
+<ol>
+<li>握手之后的对话使用”对话密钥”加密（对称加密），服务器的公钥和私钥只用于加密和解密”对话密钥”（非对称加密），无其他作用。</li>
+<li>服务器公钥放在服务器的数字证书之中。</li>
+</ol>
+<h3 id="实现方案"><a href="#实现方案" class="headerlink" title="实现方案"></a>实现方案</h3><p>其实对于https报文的抓取已经有一个成熟的开源库 <a href="https://github.com/alibaba/anyproxy" target="_blank" rel="external">anyproxy</a>，该方案使用nodejs实现，可以通过加载rule的方式，自定义报文的拦截。</p>
+<ol>
+<li>首先需要将anyproxy导出的证书安装到手机上，作为中间人攻击中的受客户端信任的证书，从而信任Proxy产生的密钥</li>
+<li>将手机代理到AnyProxy机器上</li>
+<li>编写适合的rule，加载到anyproxy中，然后对应的报文就会通过这个rule文件，此处可以做报文的拦截上报</li>
+</ol>
+<h3 id="自动化方案"><a href="#自动化方案" class="headerlink" title="自动化方案"></a>自动化方案</h3><p>客户端的操作具有一定的规律，可以通过Monky脚本作为定时任务，此处暂时还没有完成，后续再补。。。</p>
+<h3 id="需要优化的地方"><a href="#需要优化的地方" class="headerlink" title="需要优化的地方"></a>需要优化的地方</h3><ol>
+<li>使用模拟器代替手机，这样能增加系统的稳定性，减少维护成本</li>
+<li>自动化任务需要完善，需要识别微信对私有证书的对话框提示，并执行点击操作</li>
+<li>为了防止微信将客户端封锁（也许有这种策略），需要加入随机因子，模拟人的操作过程</li>
+</ol>
+<h3 id="优缺点"><a href="#优缺点" class="headerlink" title="优缺点"></a>优缺点</h3><p><strong>优点：</strong></p>
+<ol>
+<li>完全模拟微信的操作，被封锁的可能性比较小</li>
+<li>可以爬取所有的历史内容</li>
+<li>可以爬取文章的留言、点赞、阅读数等</li>
+</ol>
+<p><strong>缺点：</strong></p>
+<ol>
+<li>系统可能不稳定，受本地PC机器网络等影响比较大，维护成本可能比较大</li>
+<li>客户端自动化脚本的编写难度较大，也许需要root配合xposed才能比较完美的自动化执行</li>
+<li>无法得知公众号的更新情况，只能轮询（可以设置为每天一次，降低成本）</li>
+</ol>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><ol>
+<li><p><a href="https://laravel-china.org/articles/4269/how-to-grab-the-elegant-wechat-public-history" target="_blank" rel="external">如何优雅的抓取微信公众号历史文章</a></p>
+</li>
+<li><p><a href="https://zh.wikipedia.org/wiki/%E4%B8%AD%E9%97%B4%E4%BA%BA%E6%94%BB%E5%87%BB" target="_blank" rel="external">中间人攻击原理</a></p>
+</li>
+</ol>
+
+                
+
+
+<p class="pink-link-context">
+    <a href="/2016/12/24/2016-12-24-LightImageLoader/" rel="next" title="从零设计一款Android图片库">
+    下一篇：从零设计一款Android图片库
+  </a>
+</p>
+
+
+            </div>
+			
+        </div>
+    </div>
+</article>
+
+
+
+
 
 
 </div>
